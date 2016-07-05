@@ -87,7 +87,7 @@ facebookのシェアボタンなどはOGPの値を読み取って処理を行う
 
 ## シェアボタンを追加する
 
-twitter,hatena,facebook,google,pocketからシェアボタンの作り方を閲覧して、[この](https://gist.github.com/KosukeShimofuji/413168a6a4a49eeccbd36368dceec450)ようにスクリプト部をheadタグに入れた。ただしpocketだけはheadに入れてもだめだったのでshareボタンを出力するタグの直後にscriptタグを配置するようにした。
+twitter,hatena,facebook,google,pocketからシェアボタンの作り方を閲覧して、[コミット](https://github.com/KosukeShimofuji/KosukeShimofuji.github.io/commit/529f3f24d93b8607d15bb6d8470c65fae6ca266a)を作成した。
 
 ## 参考文献
 
