@@ -1,0 +1,92 @@
+<style type="text/css">
+<!--
+/*** sahre button settings ***/
+
+/* adjusting twitter share button */
+ul.share-buttons{
+  margin : 0;
+  list-style: none;
+  padding: 0;
+}
+
+ul.share-buttons li{
+  display: inline;
+}
+
+/* adjusting facebook share button */
+.fb_iframe_widget > span {
+  vertical-align: baseline !important;
+}
+
+/* adjusting google share button */
+#___plusone_0{ width:72px !important; }
+.___plusone_0 > span {
+  vertical-align: baseline !important;
+}
+
+/* adjusting pocket share button */
+.pocket-btn {
+    display: inline;
+}
+-->
+</style>
+
+<!-- twitter share script -->
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+<!-- hatena share script -->
+<script type="text/javascript" src="https://b.st-hatena.com/js/bookmark_button.js" charset="utf-8" async="async"></script>
+
+<!-- facebook sahre script -->
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/ja_JP/sdk.js#xfbml=1&version=v2.6";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<!-- google sahre script -->
+<script src="https://apis.google.com/js/platform.js" async defer>
+ang: 'ja'}
+</script>
+
+<script type="text/javascript">!function(d,i){if(!d.getElementById(i)){var j=d.createElement("script");j.id=i;j.src="https://widgets.getpocket.com/v1/j/btn.js?v=1";var w=d.getElementById(i);d.body.appendChild(j);}}(document,"pocket-btn-js");</script>
+
+<ul class="share-buttons" >
+    <li>
+        <!-- twitter share button -->
+    <a href="https://twitter.com/share"
+       class="twitter-share-button"
+       data-url="{{ site.url }}{{ page.url }}"
+       data-text="{{ page.title }} | {{ site.title }}" >Tweet</a>
+    </li>
+    <li>
+        <!-- facebook share button -->
+        <div class="fb-share-button"
+             data-href="{{ site.url }}{{ page.url }}"
+             data-layout="button_count"></div>
+    </li>
+    <li>
+        <!-- hatena share button -->
+        <a href="http://b.hatena.ne.jp/entry/{{ site.url }}{{ page.url }}"
+           class="hatena-bookmark-button"
+           data-hatena-bookmark-layout="simple-balloon"
+           data-hatena-bookmark-title="{{ page.title }} | {{ site.title }}"
+           data-hatena-bookmark-lang="ja"
+           title="Share on Hatena">
+            <img src="https://b.st-hatena.com/images/entry-button/button-only@2x.png"
+                 alt="Share on Hatena" width="20" height="20" style="border: none;" />
+        </a>
+    </li>
+    <li>
+        <!-- google share button -->
+        <div class="g-plusone"
+             data-href="{{ site.url }}{{ page.url }}"></div>
+    </li>
+    <li>
+        <!-- pocket share button -->
+        <a data-pocket-label="pocket" data-pocket-count="horizontal" class="pocket-btn" data-lang="en"></a>
+    </li>
+</ul>
+
