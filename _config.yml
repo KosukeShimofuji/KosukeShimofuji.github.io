@@ -6,12 +6,10 @@
 # 'jekyll serve'. If you change this file, please restart the server process.
 
 # Site settings
-title: Kosuke Shimofuji's Home Page
+title: Kosuke Shimofuji's Blog
 email: kosuke.shimofuji@gmail.com
 description: > # this means to ignore newlines until "baseurl:"
-   私はコンピュータ技術により社会が発展するのが好きです。
-   一方でコンピュータ技術による個人、企業、国家の犯罪について危惧しています。
-   コンピュータ技術の進化の果てが、ディストピアなのかユートピアなのかを知りたいと思います。
+
 permalink: /:year/:month/:day/:title/
 baseurl: "" # the subpath of your site, e.g. /blog
 url: "http://KosukeShimofuji.GITHUB.IO" # the base hostname & protocol for your site
@@ -20,3 +18,4 @@ github_username:  KosukeShimofuji
 
 # Build settings
 markdown: kramdown
+
