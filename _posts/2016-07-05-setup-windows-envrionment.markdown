@@ -50,6 +50,13 @@ $ cocoto.exe ipconfig
 apt-cyg install tmux
 ```
 
+## vim 
+
+```
+mkdir -p ~/.vim/{swap,backup,colors,bundle}
+git clone https://github.com/Shougo/neobundle.vim
+```
+
 ## [Ricty Fonts](http://www.rs.tus.ac.jp/yyusa/ricty_diminished.html)
 
 Fontを導入したら以下の場所にコピペする。
@@ -69,8 +76,7 @@ ansibleを動作させるためにcygwin環境にpython2を構築する。ansibl
 pyenvとvirtualenvを使いたかったけどCygwin環境では使うことができなかった。
 
 ```
-$ apt-cyg install python3
-$ ln -s /usr/bin/python3 /usr/bin/python
+$ apt-cyg install python
 ```
 
 ## pip
