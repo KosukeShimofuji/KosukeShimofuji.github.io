@@ -9,7 +9,7 @@
 title: Kosuke Shimofuji's Blog
 email: kosuke.shimofuji@gmail.com
 description: > # this means to ignore newlines until "baseurl:"
-
+    Think about CyberSecurity
 permalink: /:year/:month/:day/:title/
 baseurl: "" # the subpath of your site, e.g. /blog
 url: "http://KosukeShimofuji.GITHUB.IO" # the base hostname & protocol for your site
