@@ -3,6 +3,7 @@ layout: post
 title:  "JekyllではじめるBLOG"
 date:   2016-07-01 00:00:00 +0900
 categories: jekyll 
+toc: true
 ---
 
 ## jekyll - 静的サイトジェネレータ
@@ -95,11 +96,19 @@ $ jekyll server -H0.0.0.0 -w -drafts
 ## OGPの設定
 
 facebookのシェアボタンなどはOGPの値を読み取って処理を行うため、OGPの設定を行う必要があった。
-[この](https://gist.github.com/KosukeShimofuji/33a65a605791d358383f7b7d3faf0099)ようにliquidの制御構造を使ってページによってOGPを設定するたたき台を作った。
+[commit](https://github.com/KosukeShimofuji/KosukeShimofuji.github.io/commit/f911a168fa4677107c252a9baac354fe5bbec489)
 
 ## シェアボタンを追加する
 
 twitter,hatena,facebook,google,pocketからシェアボタンの作り方を閲覧して、[コミット](https://github.com/KosukeShimofuji/KosukeShimofuji.github.io/commit/529f3f24d93b8607d15bb6d8470c65fae6ca266a)を作成した。
+
+## TOCを追加する
+
+```
+gem install jekyll-toc
+```
+
+[commit](https://github.com/KosukeShimofuji/KosukeShimofuji.github.io/commit/4dcc841aab704b13ca8b4e32384e918b26da1bc3)
 
 ## カスタムドメインを設定する。
 
