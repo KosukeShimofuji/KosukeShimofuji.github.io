@@ -42,6 +42,23 @@ $ make install
 $ cocoto.exe ipconfig
 ```
 
+## Cygwinでsudoを使えるようにする
+
+```
+cat > .bashrc
+IF [[ -N "$ps1" ]]; THEN
+    __SUDO_CYGWIN() {
+    LOCAL EXECUTABLE=$(WHICH "${1:-CMD}")
+    SHIFT
+    /USR/BIN/CYGSTART --ACTION=RUNAS "$EXECUTABLE" "$@"
+}
+
+    IF [[ -X "/USR/BIN/CYGSTART" ]]; THEN
+           ALIAS SUDO=__SUDO_CYGWIN
+    FI
+FI
+```
+
 ## tmux
 
 ターミナルマルチプレクサのtmuxを導入する。
@@ -114,5 +131,5 @@ pip install ansible
  * http://hpcmemo.hatenablog.com/entry/2016/03/11/004541
  * qiita.com/konta220/items/95b40b4647a737cb51aa
  * http://yuukiar.co/blog/2015/04/04/windows-chocolatey/
-
+ * http://inaz2.hatenablog.com/entry/2015/11/12/233356
 
