@@ -137,11 +137,39 @@ sofia.ns.cloudflare.com.
 bayan.ns.cloudflare.com.
 ```
 
-ネットの情報によると最大4日間、反映に時間がかかるとのこと。。。
+反映に半日程度の時間が必要だった。
+Flexible設定はあくまでクライアントからCloudFlare間の通信を暗号化するものなので、CloudFlareは通信を平文で閲覧することができる。
+といってもCDNという仕組みは中間者攻撃し放題の仕組みだと思うので、CloudFlareを通してTLSの設定をするというのはCloudFlareに全幅の信頼を置くということだ。
+
+## Page Rules
+
+kosukeshimofuji.jp/*のリクエストを強制的にhttpsに書き換えます。
+
+![page_rule]({{site.baseurl}}/images/2016/07/01/page_rule.png)
+
+## HSTS
+
+kosukeshimofuji.jpのリクエストはHTTPSを使用するように指示します。しかしサブドメインは除外します。
+
+![HSTSk]({{site.baseurl}}/images/2016/07/01/HSTS.png)
 
 ## Google Analyticsを設定する
 
+ * Google Tracking codeを有効にする。
 
+[commit](https://github.com/KosukeShimofuji/KosukeShimofuji.github.io/commit/7c816507c7262694619b8c23cbec0e8ce177f590)
+
+[Google Tag Assisant](https://get.google.com/tagassistant/?utm_source=google.com&utm_medium=notif_referral&utm_campaign=TRAFFIC_ANALYSIS_RECOMMENDATION)を使ってTracking Codeが正常に動作するかを確認する。
+
+ * Google Search Consoleに登録する。
+
+[commit](https://github.com/KosukeShimofuji/KosukeShimofuji.github.io/commit/41bfa05cf7d294b1d947895dfa48ab3cd8a9b5e0)
+
+## Disqusを使用する
+
+[Disqus](https://disqus.com/)に登録してタグを埋め込む。
+
+[commit](https://github.com/KosukeShimofuji/KosukeShimofuji.github.io/commit/64012602a2fc0fc86a6e5cddf867ca624cf74eac)
 
 ## 参考文献
 
@@ -155,4 +183,5 @@ bayan.ns.cloudflare.com.
  * http://qiita.com/superbrothers/items/95e5723e9bd320094537
  * http://uzulla.hateblo.jp/entry/2015/02/25/033133
  * https://blog.euonymus.info/cloudflare%E3%81%A7ssl%E3%82%92%E5%B0%8E%E5%85%A5%E3%81%99%E3%82%8B%E6%99%82%E3%81%AE%E6%B3%A8%E6%84%8F/
+ * https://teamtreehouse.com/library/build-a-blog-with-jekyll-and-github-pages/building-and-customizing-the-blog/comment-threads
 
