@@ -19,3 +19,7 @@ github_username:  KosukeShimofuji
 # Build settings
 markdown: kramdown
 
+# add gems 
+gems:
+      - jekyll-toc
+
