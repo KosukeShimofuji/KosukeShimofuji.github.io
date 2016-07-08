@@ -3,6 +3,7 @@ layout: post
 title:  "Windows環境のセットアップ"
 date:   2016-07-05 00:00:00 +0900
 categories: jekyll
+toc: true
 ---
 
 何度もWindowsを作り直しているので環境構築の備忘録を残しておく。
