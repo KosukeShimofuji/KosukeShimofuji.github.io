@@ -110,10 +110,11 @@ gem install jekyll-toc
 
 [commit](https://github.com/KosukeShimofuji/KosukeShimofuji.github.io/commit/4dcc841aab704b13ca8b4e32384e918b26da1bc3)
 
-github pageではjekyll pluginがsafe
-modeになっているため使えないので、ローカルで生成したファイル群をgh-pagesに追加するような運用にする。
+## ローカルで生成したファイルをgithub pageに公開する運用に変更する
 
-
+github pageではjekyll pluginがsafe modeになっているため使えないので、ローカルで生成したファイル群をgh-pagesに追加するような運用にする。 
+masterにコミットされたファイルがgithub pageとして公開されるのでソースコードの管理はsoure branchで行い、jekyllで生成したファイルをmasterブランチに展開する。
+この作業を簡単にする[スクリプト](https://github.com/KosukeShimofuji/KosukeShimofuji.github.io/blob/source/publish.sh)を書いておく。
 
 ## カスタムドメインを設定する。
 
@@ -186,8 +187,13 @@ kosukeshimofuji.jpのリクエストはHTTPSを使用するように指示しま
 
 ## Disqusを使用する
 
-https://kosukesimofuji-hp.disqus.com/admin/settings/universalcode/
+[disqus.com](https://disqus.com/)に登録して以下のようなコミットを作成する。
 
+[commit](https://github.com/KosukeShimofuji/KosukeShimofuji.github.io/commit/64012602a2fc0fc86a6e5cddf867ca624cf74eac)
+
+## SNSのSVGファイル
+
+[ここ](https://github.com/tombryan/social-icon-font)のiconを使わせていただいている。
 
 ## 参考文献
 
@@ -202,4 +208,5 @@ https://kosukesimofuji-hp.disqus.com/admin/settings/universalcode/
  * http://uzulla.hateblo.jp/entry/2015/02/25/033133
  * https://blog.euonymus.info/cloudflare%E3%81%A7ssl%E3%82%92%E5%B0%8E%E5%85%A5%E3%81%99%E3%82%8B%E6%99%82%E3%81%AE%E6%B3%A8%E6%84%8F/
  * https://teamtreehouse.com/library/build-a-blog-with-jekyll-and-github-pages/building-and-customizing-the-blog/comment-threads
+
 
