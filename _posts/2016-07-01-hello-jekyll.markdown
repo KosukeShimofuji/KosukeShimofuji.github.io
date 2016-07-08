@@ -110,6 +110,11 @@ gem install jekyll-toc
 
 [commit](https://github.com/KosukeShimofuji/KosukeShimofuji.github.io/commit/4dcc841aab704b13ca8b4e32384e918b26da1bc3)
 
+github pageではjekyll pluginがsafe
+modeになっているため使えないので、ローカルで生成したファイル群をgh-pagesに追加するような運用にする。
+
+
+
 ## カスタムドメインを設定する。
 
 jekyllとは関係ないが、github pageのCNAMEの設定を行う。
