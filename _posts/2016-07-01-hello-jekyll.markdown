@@ -87,6 +87,11 @@ $ mkdir _drafts
 $ jekyll server -H0.0.0.0 -w -drafts
 ```
 
+## syntax highlightを変更する 
+
+テーマを[公開](https://github.com/jwarby/jekyll-pygments-themes)されている方がいらっしゃるので使わせてもらう。
+[commit](https://github.com/KosukeShimofuji/KosukeShimofuji.github.io/commit/bd84c2ab6bf0fca73a8a695c4d5e4e9ea6431e2a)
+
 ## OGPの設定
 
 facebookのシェアボタンなどはOGPの値を読み取って処理を行うため、OGPの設定を行う必要があった。
@@ -167,9 +172,8 @@ kosukeshimofuji.jpのリクエストはHTTPSを使用するように指示しま
 
 ## Disqusを使用する
 
-[Disqus](https://disqus.com/)に登録してタグを埋め込む。
+https://kosukesimofuji-hp.disqus.com/admin/settings/universalcode/
 
-[commit](https://github.com/KosukeShimofuji/KosukeShimofuji.github.io/commit/64012602a2fc0fc86a6e5cddf867ca624cf74eac)
 
 ## 参考文献
 
