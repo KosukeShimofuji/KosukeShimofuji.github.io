@@ -85,7 +85,7 @@ KosukeShimofuji.github.io/
 
 ```
 $ mkdir _drafts
-$ jekyll server -H0.0.0.0 -w -drafts
+$ jekyll server -H0.0.0.0 -w --drafts
 ```
 
 ## syntax highlightを変更する 
