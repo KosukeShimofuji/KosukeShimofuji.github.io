@@ -27,3 +27,10 @@ $ jekyll server -H0.0.0.0 --drafts -w
 $ sh publish.sh
 ```
 
+## BLOGのソースコードをgithubにpushする
+
+```
+git push origin source
+```
+
+
