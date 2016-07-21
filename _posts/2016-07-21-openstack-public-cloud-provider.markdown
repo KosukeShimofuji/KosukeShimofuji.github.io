@@ -711,6 +711,82 @@ kosuke@OpenMultiStack ~/conoha $ nova boot --image "vmi-debian-8-amd64" --flavor
 
 Conohaはセキュリティグループの割り当てを行わないと、デフォルトではSSH接続することはできない。この問題は起動時にセキュリティグループを設定することで回避することができるのは確認している。
 
+```
+ kosuke@OpenMultiStack ~/conoha $ nova boot --image "vmi-debian-8-amd64" --flavor "g-1gb" --key-name conoha sandbox.conoha.cloud --security-groups gncs-ipv4-all
++--------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Property                             | Value                                                                                                                                                                                                                                                  |
++--------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| OS-DCF:diskConfig                    | MANUAL                                                                                                                                                                                                                                                 |
+| OS-EXT-AZ:availability_zone          | nova                                                                                                                                                                                                                                                   |
+| OS-EXT-SRV-ATTR:host                 |                                                                                                                                                                                                                                                        |
+| OS-EXT-SRV-ATTR:hypervisor_hostname  |                                                                                                                                                                                                                                                        |
+| OS-EXT-SRV-ATTR:instance_name        | tyo1-0007730a                                                                                                                                                                                                                                          |
+| OS-EXT-STS:power_state               | 0                                                                                                                                                                                                                                                      |
+| OS-EXT-STS:task_state                | scheduling                                                                                                                                                                                                                                             |
+| OS-EXT-STS:vm_state                  | building                                                                                                                                                                                                                                               |
+| OS-SRV-USG:launched_at               | -                                                                                                                                                                                                                                                      |
+| OS-SRV-USG:terminated_at             | -                                                                                                                                                                                                                                                      |
+| accessIPv4                           |                                                                                                                                                                                                                                                        |
+| accessIPv6                           |                                                                                                                                                                                                                                                        |
+| adminPass                            | gNY_iIzfw                                                                                                                                                                                                                                              |
+| config_drive                         | True                                                                                                                                                                                                                                                   |
+| created                              | 2016-07-21T07:31:44Z                                                                                                                                                                                                                                   |
+| flavor                               | g-1gb (7eea7469-0d85-4f82-8050-6ae742394681)                                                                                                                                                                                                           |
+| hostId                               |                                                                                                                                                                                                                                                        |
+| id                                   | 4b9cf133-89a7-427c-8e1a-2b08b2f0943f                                                                                                                                                                                                                   |
+| image                                | vmi-debian-8-amd64 (c14d5dd5-debc-464c-9cc3-ada6e48f5d0c)                                                                                                                                                                                              |
+| key_name                             | conoha                                                                                                                                                                                                                                                 |
+| metadata                             | {"backup_status": "active", "backup_id": "", "backup_set": "0", "instance_name_tag": "133-130-113-209", "properties": "{\"vnc_keymap\":\"ja\",\"hw_video_model\":\"vga\",\"hw_vif_model\":\"virtio\",\"hw_disk_bus\":\"virtio\",\"cdrom_path\":\"\"}"} |
+| name                                 | 133-130-113-209                                                                                                                                                                                                                                        |
+| os-extended-volumes:volumes_attached | []                                                                                                                                                                                                                                                     |
+| progress                             | 0                                                                                                                                                                                                                                                      |
+| security_groups                      | gncs-ipv4-all                                                                                                                                                                                                                                          |
+| status                               | BUILD                                                                                                                                                                                                                                                  |
+| tenant_id                            | 23fdcfdea20f41b4bbef4da336eb0f05                                                                                                                                                                                                                       |
+| updated                              | 2016-07-21T07:31:45Z                                                                                                                                                                                                                                   |
+| user_id                              | 768ce130012d41979e90a2d3949a501f                                                                                                                                                                                                                       |
++--------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+kosuke@OpenMultiStack ~/conoha $ chmod 600 conoha.pem
+kosuke@OpenMultiStack ~/conoha $ ssh root@133.130.113.209 -i conoha.pem
+
+The programs included with the Debian GNU/Linux system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
+permitted by applicable law.
+-bash: warning: setlocale: LC_ALL: cannot change locale (ja_JP.UTF-8)
+_____________________________________________________________________
+WARNING! Your environment specifies an invalid locale.
+ This can affect your user experience significantly, including the
+ ability to manage packages. You may install the locales by running:
+
+   sudo apt-get install language-pack-ja
+     or
+   sudo locale-gen ja_JP.UTF-8
+
+To see all available language packs, run:
+   apt-cache search "^language-pack-[a-z][a-z]$"
+To disable this message for all users, run:
+   sudo touch /var/lib/cloud/instance/locale-check.skip
+_____________________________________________________________________
+
+-bash: warning: setlocale: LC_ALL: cannot change locale (ja_JP.UTF-8)
+root@133-130-113-209:~#
+```
+
+もう一つ気をつけておかないといけないのは、Conohaは任意のインスタンス名を指定しても、Conoha側で勝手に名前をIPv4に基づく名前に変更されるということは覚えておいたほうがいい。
+
+```
+(OpenMultiStack) kosuke@OpenMultiStack ~/conoha $ nova delete 133-130-113-209
+Request to delete server 133-130-113-209 has been accepted.
+(OpenMultiStack) kosuke@OpenMultiStack ~/conoha $ nova list
++----+------+--------+------------+-------------+----------+
+| ID | Name | Status | Task State | Power State | Networks |
++----+------+--------+------------+-------------+----------+
++----+------+--------+------------+-------------+----------+
+```
+
 # APIに着目した調査のまとめ
 
 vexxhostとconohaについて私がよく使うAPIについて比較を行ったが、細かなところで差異が存在する。openstack public cloud providerを複数またいで使うような場合は、この差異を考えて共通化する必要がある。
