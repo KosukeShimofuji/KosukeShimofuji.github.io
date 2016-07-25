@@ -435,17 +435,403 @@ django=> select * from open_multi_stack_account;
 
 ![after_account_index]({{site.baseurl}}/images/2016/07/22/after_account_index.png)
 
-# RESTful API
-
-クライアントはRESTful APIを用いてOpenMultiStackにインスタンス作成命令やインスタンス破棄命令を送ることができます。OpenMultiStackはこのような命令を受け取るとinstanceテーブルにレコード追加・削除の処理を行い、signalを発生させます。signalについては後で考えるとして、本項ではRESTful APIとinstanceテーブルの操作の仕組みを作成していきます。
-
 ## インスタンステーブル
 
+インスタンステーブルはOpenStack上に構築されたインスタンスを管理するためのテーブルであり, インスタンス名, IPアドレス, 秘密鍵, Accountテーブルとの紐付け情報をカラムとして持つ。現在のインスタンステーブルの構成はたたき台であり、OpenStackとの連携の上でカラムは随時増やしていく。(そういうことが容易にできるのはdjangoの利点である)
 
+ * instance tableの作成
+
+```
+class Instance(models.Model):
+   name    = models.CharField(max_length=128)
+    ip      = models.CharField(max_length=128)
+    key     = models.CharField(max_length=128)
+    account = models.ForeignKey(Account)
+
+    def __str__(self):
+        return self.name + '_' + self.ip + '_' + self.account
+```
+
+ * migrateの実行
+
+```
+(OpenMultiStack) kosuke@OpenMultiStack ~/OpenMultiStack/django_project $  python manage.py makemigrations open_multi_stack
+Migrations for 'open_multi_stack':
+  0002_auto_20160725_1044.py:
+    - Create model Instance
+    - Alter field status on account
+    - Add field account to instance
+(OpenMultiStack) kosuke@OpenMultiStack ~/OpenMultiStack/django_project $ python manage.py sqlmigrate open_multi_stack 0002
+BEGIN;
+--
+-- Create model Instance
+--
+CREATE TABLE "open_multi_stack_instance" ("id" serial NOT NULL PRIMARY KEY, "name" varchar(128) NOT NULL, "ip" varchar(128) NOT NULL, "key" varchar(128) NOT NULL);
+--
+-- Alter field status on account
+--
+--
+-- Add field account to instance
+--
+ALTER TABLE "open_multi_stack_instance" ADD COLUMN "account_id" integer NOT NULL;
+ALTER TABLE "open_multi_stack_instance" ALTER COLUMN "account_id" DROP DEFAULT;
+CREATE INDEX "open_multi_stack_instance_8a089c2a" ON "open_multi_stack_instance" ("account_id");
+ALTER TABLE "open_multi_stack_instance" ADD CONSTRAINT "open_multi_s_account_id_1c0a0d19_fk_open_multi_stack_account_id" FOREIGN KEY ("account_id") REFERENCES "open_multi_stack_account" ("id") DEFERRABLE INITIALLY DEFERRED;
+
+COMMIT;
+```
+
+作成されたinstanceテーブルの確認
+
+```
+django=> \d open_multi_stack_instance;
+                                 テーブル "public.open_multi_stack_instance"
+     列     |           型           |                                 修飾語
+------------+------------------------+------------------------------------------------------------------------
+ id         | integer                | not null default nextval('open_multi_stack_instance_id_seq'::regclass)
+ name       | character varying(128) | not null
+ ip         | character varying(128) | not null
+ key        | character varying(128) | not null
+ account_id | integer                | not null
+インデックス:
+    "open_multi_stack_instance_pkey" PRIMARY KEY, btree (id)
+    "open_multi_stack_instance_8a089c2a" btree (account_id)
+外部キー制約:
+    "open_multi_s_account_id_1c0a0d19_fk_open_multi_stack_account_id" FOREIGN KEY (account_id) REFERENCES open_multi_stack_account(id) DEFERRABLE INITIALLY DEFERRED
+```
+
+インスタンステーブルも管理画面から閲覧・編集できれば便利です。
+
+[commit](https://github.com/KosukeShimofuji/OpenMultiStack/commit/653d8f282503b01c21284b1de59a392912ab0223)
+
+リレーションを設定するとdjangoは自動的にaccountテーブルのレコードと紐付けなければならないことを検知し、account_idの入力をリストとして設定します。
+
+![instance_table_on_admin]({{site.baseurl}}/images/2016/07/22/instance_table_on_admin.png)
+
+# djangoのキューワーカー
+
+OpenStackとの連携部分はHTTP通信とは切り離して非同期で行いたいので、キューワーカを使用したいと思います。
+djangoのキューワーカーは[celery](http://docs.celeryproject.org/)がデファクトスタンダードのようです。
+まずは[チュートリアル](http://docs.celeryproject.org/en/latest/getting-started/first-steps-with-celery.html)に沿ってceleryを理解するところから始めます。
+
+## ブローカーの選択
+
+celeryはメッセージを送受信するためのメッセージブローカを必要とします。代表的な選択肢はRabbitMQ、Redis、Djangoがすでに利用しているデータベースなどがあります。ここでは最小限の構成にするためにすでに利用しているPostgresqlをブローカとして利用します。(大規模なキューワーカーのタスクを任せる場合はPostgresなどを利用するのは推奨されませんが、小さな仕組みであれば動作するようです。)
+
+## djnago-celeryのインストール
+
+```
+$ pip install django-celery
+Collecting django-celery
+  Downloading django-celery-3.1.17.tar.gz (79kB)
+    100% |████████████████████████████████| 81kB 1.9MB/s
+Requirement already satisfied (use --upgrade to upgrade): celery>=3.1.15 in /home/kosuke/.pyenv/versions/3.5.1/envs/OpenMultiStack/lib/python3.5/site-packages (from django-celery)
+Requirement already satisfied (use --upgrade to upgrade): pytz>dev in /home/kosuke/.pyenv/versions/3.5.1/envs/OpenMultiStack/lib/python3.5/site-packages (from celery>=3.1.15->django-celery)
+Requirement already satisfied (use --upgrade to upgrade): kombu<3.1,>=3.0.34 in /home/kosuke/.pyenv/versions/3.5.1/envs/OpenMultiStack/lib/python3.5/site-packages (from celery>=3.1.15->django-celery)
+Requirement already satisfied (use --upgrade to upgrade): billiard<3.4,>=3.3.0.23 in /home/kosuke/.pyenv/versions/3.5.1/envs/OpenMultiStack/lib/python3.5/site-packages (from celery>=3.1.15->django-celery)
+Requirement already satisfied (use --upgrade to upgrade): amqp<2.0,>=1.4.9 in /home/kosuke/.pyenv/versions/3.5.1/envs/OpenMultiStack/lib/python3.5/site-packages (from kombu<3.1,>=3.0.34->celery>=3.1.15->django-celery)
+Requirement already satisfied (use --upgrade to upgrade): anyjson>=0.3.3 in /home/kosuke/.pyenv/versions/3.5.1/envs/OpenMultiStack/lib/python3.5/site-packages (from kombu<3.1,>=3.0.34->celery>=3.1.15->django-celery)
+Installing collected packages: django-celery
+  Running setup.py install for django-celery ... done
+Successfully installed django-celery-3.1.17
+```
+
+## SQLalchemyのインストール
+
+backendにpostgresqlを利用するにはSQLalchemyをcelelyが利用するのでインストールする。
+
+```
+pip install sqlalchemy
+```
+
+## djceleryの設定
+
+djangoで使用しているデータベースを利用すると決定したので[ここ](http://docs.celeryproject.org/en/latest/getting-started/brokers/django.html#broker-django)を参考に設定を行います。
+
+[commit](https://github.com/KosukeShimofuji/OpenMultiStack/commit/a9dccfb5acc9de5359523e6fd3d1105b4e163bba)
+[commit](https://github.com/KosukeShimofuji/OpenMultiStack/commit/cd76de70707beb915e5f4b48e56f175033ffcb0c)
+
+ * celery用のテーブルを作成
+
+```
+(OpenMultiStack) kosuke@OpenMultiStack ~/OpenMultiStack/django_project $ python manage.py makemigrations djcelery
+Migrations for 'djcelery':
+  0002_auto_20160725_1435.py:
+    - Alter field status on taskmeta
+    - Alter field state on taskstate
+
+(OpenMultiStack) kosuke@OpenMultiStack ~/OpenMultiStack/django_project $ python manage.py sqlmigrate djcelery 0001
+BEGIN;
+--
+-- Create model CrontabSchedule
+--
+CREATE TABLE "djcelery_crontabschedule" ("id" serial NOT NULL PRIMARY KEY, "minute" varchar(64) NOT NULL, "hour" varchar(64) NOT NULL, "day_of_week" varchar(64) NOT NULL, "day_of_month" varchar(64) NOT NULL, "month_of_year" varchar(64) NOT NULL);
+--
+-- Create model IntervalSchedule
+--
+CREATE TABLE "djcelery_intervalschedule" ("id" serial NOT NULL PRIMARY KEY, "every" integer NOT NULL, "period" varchar(24) NOT NULL);
+--
+-- Create model PeriodicTask
+--
+CREATE TABLE "djcelery_periodictask" ("id" serial NOT NULL PRIMARY KEY, "name" varchar(200) NOT NULL UNIQUE, "task" varchar(200) NOT NULL, "args" text NOT NULL, "kwargs" text NOT NULL, "queue" varchar(200) NULL, "exchange" varchar(200) NULL, "routing_key" varchar(200) NULL, "expires" timestamp with time zone NULL, "enabled" boolean NOT NULL, "last_run_at" timestamp with time zone NULL, "total_run_count" integer NOT NULL CHECK ("total_run_count" >= 0), "date_changed" timestamp with time zone NOT NULL, "description" text NOT NULL, "crontab_id" integer NULL, "interval_id" integer NULL);
+--
+-- Create model PeriodicTasks
+--
+CREATE TABLE "djcelery_periodictasks" ("ident" smallint NOT NULL PRIMARY KEY, "last_update" timestamp with time zone NOT NULL);
+--
+-- Create model TaskMeta
+--
+CREATE TABLE "celery_taskmeta" ("id" serial NOT NULL PRIMARY KEY, "task_id" varchar(255) NOT NULL UNIQUE, "status" varchar(50) NOT NULL, "result" text NULL, "date_done" timestamp with time zone NOT NULL, "traceback" text NULL, "hidden" boolean NOT NULL, "meta" text NULL);
+--
+-- Create model TaskSetMeta
+--
+CREATE TABLE "celery_tasksetmeta" ("id" serial NOT NULL PRIMARY KEY, "taskset_id" varchar(255) NOT NULL UNIQUE, "result" text NOT NULL, "date_done" timestamp with time zone NOT NULL, "hidden" boolean NOT NULL);
+--
+-- Create model TaskState
+--
+CREATE TABLE "djcelery_taskstate" ("id" serial NOT NULL PRIMARY KEY, "state" varchar(64) NOT NULL, "task_id" varchar(36) NOT NULL UNIQUE, "name" varchar(200) NULL, "tstamp" timestamp with time zone NOT NULL, "args" text NULL, "kwargs" text NULL, "eta" timestamp with time zone NULL, "expires" timestamp with time zone NULL, "result" text NULL, "traceback" text NULL, "runtime" double precision NULL, "retries" integer NOT NULL, "hidden" boolean NOT NULL);
+--
+-- Create model WorkerState
+--
+CREATE TABLE "djcelery_workerstate" ("id" serial NOT NULL PRIMARY KEY, "hostname" varchar(255) NOT NULL UNIQUE, "last_heartbeat" timestamp with time zone NULL);
+--
+-- Add field worker to taskstate
+--
+ALTER TABLE "djcelery_taskstate" ADD COLUMN "worker_id" integer NULL;
+ALTER TABLE "djcelery_taskstate" ALTER COLUMN "worker_id" DROP DEFAULT;
+ALTER TABLE "djcelery_periodictask" ADD CONSTRAINT "djcelery_per_crontab_id_75609bab_fk_djcelery_crontabschedule_id" FOREIGN KEY ("crontab_id") REFERENCES "djcelery_crontabschedule" ("id") DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE "djcelery_periodictask" ADD CONSTRAINT "djcelery_p_interval_id_b426ab02_fk_djcelery_intervalschedule_id" FOREIGN KEY ("interval_id") REFERENCES "djcelery_intervalschedule" ("id") DEFERRABLE INITIALLY DEFERRED;
+CREATE INDEX "djcelery_periodictask_f3f0d72a" ON "djcelery_periodictask" ("crontab_id");
+CREATE INDEX "djcelery_periodictask_1dcd7040" ON "djcelery_periodictask" ("interval_id");
+CREATE INDEX "djcelery_periodictask_name_cb62cda9_like" ON "djcelery_periodictask" ("name" varchar_pattern_ops);
+CREATE INDEX "celery_taskmeta_662f707d" ON "celery_taskmeta" ("hidden");
+CREATE INDEX "celery_taskmeta_task_id_9558b198_like" ON "celery_taskmeta" ("task_id" varchar_pattern_ops);
+CREATE INDEX "celery_tasksetmeta_662f707d" ON "celery_tasksetmeta" ("hidden");
+CREATE INDEX "celery_tasksetmeta_taskset_id_a5a1d4ae_like" ON "celery_tasksetmeta" ("taskset_id" varchar_pattern_ops);
+CREATE INDEX "djcelery_taskstate_9ed39e2e" ON "djcelery_taskstate" ("state");
+CREATE INDEX "djcelery_taskstate_b068931c" ON "djcelery_taskstate" ("name");
+CREATE INDEX "djcelery_taskstate_863bb2ee" ON "djcelery_taskstate" ("tstamp");
+CREATE INDEX "djcelery_taskstate_662f707d" ON "djcelery_taskstate" ("hidden");
+CREATE INDEX "djcelery_taskstate_state_53543be4_like" ON "djcelery_taskstate" ("state" varchar_pattern_ops);
+CREATE INDEX "djcelery_taskstate_task_id_9d2efdb5_like" ON "djcelery_taskstate" ("task_id" varchar_pattern_ops);
+CREATE INDEX "djcelery_taskstate_name_8af9eded_like" ON "djcelery_taskstate" ("name" varchar_pattern_ops);
+CREATE INDEX "djcelery_workerstate_f129901a" ON "djcelery_workerstate" ("last_heartbeat");
+CREATE INDEX "djcelery_workerstate_hostname_b31c7fab_like" ON "djcelery_workerstate" ("hostname" varchar_pattern_ops);
+CREATE INDEX "djcelery_taskstate_ce77e6ef" ON "djcelery_taskstate" ("worker_id");
+ALTER TABLE "djcelery_taskstate" ADD CONSTRAINT "djcelery_taskstat_worker_id_f7f57a05_fk_djcelery_workerstate_id" FOREIGN KEY ("worker_id") REFERENCES "djcelery_workerstate" ("id") DEFERRABLE INITIALLY DEFERRED;
+
+COMMIT;
+(OpenMultiStack) kosuke@OpenMultiStack ~/OpenMultiStack/django_project $ python manage.py migrate djcelery
+Operations to perform:
+  Apply all migrations: djcelery
+Running migrations:
+  Rendering model states... DONE
+  Applying djcelery.0001_initial... OK
+  Applying djcelery.0002_auto_20160725_1435... OK
+```
+
+## Taskの作成
+
+10秒待って足し算の結果を返すタスクを作成します。
+
+[commit](https://github.com/KosukeShimofuji/OpenMultiStack/commit/1474bdde296fe5a7594cc47fd539cb7d2eeac3fb)
+
+## Workerの起動
+
+```
+(OpenMultiStack) kosuke@OpenMultiStack ~/OpenMultiStack/django_project $ celery -A django_project worker -l info -c 1
+/home/kosuke/.pyenv/versions/3.5.1/envs/OpenMultiStack/lib/python3.5/site-packages/celery/apps/worker.py:161: CDeprecationWarning:
+Starting from version 3.2 Celery will refuse to accept pickle by default.
+
+The pickle serializer is a security concern as it may give attackers
+the ability to execute any command.  It's important to secure
+your broker from unauthorized access when using pickle, so we think
+that enabling pickle should require a deliberate action and not be
+the default choice.
+
+If you depend on pickle then you should set a setting to disable this
+warning and to be sure that everything will continue working
+when you upgrade to Celery 3.2::
+
+    CELERY_ACCEPT_CONTENT = ['pickle', 'json', 'msgpack', 'yaml']
+
+You must only enable the serializers that you will actually use.
+
+
+  warnings.warn(CDeprecationWarning(W_PICKLE_DEPRECATED))
+
+[2016-07-25 14:40:30,515: WARNING/MainProcess] /home/kosuke/.pyenv/versions/3.5.1/envs/OpenMultiStack/lib/python3.5/site-packages/celery/apps/worker.py:161: CDeprecationWarning:
+Starting from version 3.2 Celery will refuse to accept pickle by default.
+
+The pickle serializer is a security concern as it may give attackers
+the ability to execute any command.  It's important to secure
+your broker from unauthorized access when using pickle, so we think
+that enabling pickle should require a deliberate action and not be
+the default choice.
+
+If you depend on pickle then you should set a setting to disable this
+warning and to be sure that everything will continue working
+when you upgrade to Celery 3.2::
+
+    CELERY_ACCEPT_CONTENT = ['pickle', 'json', 'msgpack', 'yaml']
+
+You must only enable the serializers that you will actually use.
+
+
+  warnings.warn(CDeprecationWarning(W_PICKLE_DEPRECATED))
+
+
+ -------------- celery@OpenMultiStack.test v3.1.23 (Cipater)
+---- **** -----
+--- * ***  * -- Linux-3.16.0-4-amd64-x86_64-with-debian-8.5
+-- * - **** ---
+- ** ---------- [config]
+- ** ---------- .> app:         django_project:0x7f3024c904e0
+- ** ---------- .> transport:   django://localhost//
+- ** ---------- .> results:     disabled://
+- *** --- * --- .> concurrency: 1 (prefork)
+-- ******* ----
+--- ***** ----- [queues]
+ -------------- .> celery           exchange=celery(direct) key=celery
+
+
+[tasks]
+  . django_project.celery.debug_task
+  . open_multi_stack.tasks.add
+
+[2016-07-25 14:40:30,544: INFO/MainProcess] Connected to django://localhost//
+/home/kosuke/.pyenv/versions/3.5.1/envs/OpenMultiStack/lib/python3.5/site-packages/celery/fixups/django.py:265: UserWarning: Using settings.DEBUG leads to a memory leak, never use this setting in production environments!
+  warnings.warn('Using settings.DEBUG leads to a memory leak, never '
+
+[2016-07-25 14:40:30,571: WARNING/MainProcess] /home/kosuke/.pyenv/versions/3.5.1/envs/OpenMultiStack/lib/python3.5/site-packages/celery/fixups/django.py:265: UserWarning: Using settings.DEBUG leads to a memory leak, never use this setting in production environments!
+  warnings.warn('Using settings.DEBUG leads to a memory leak, never '
+
+[2016-07-25 14:40:30,573: WARNING/MainProcess] celery@OpenMultiStack.test ready.
+```
+
+## Taskのテスト
+
+```
+(OpenMultiStack) kosuke@OpenMultiStack ~/OpenMultiStack/django_project $ python manage.py shell
+Python 3.5.1 (default, Jul 22 2016, 10:16:05)
+[GCC 4.9.2] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+(InteractiveConsole)
+>>> from open_multi_stack.tasks import add
+>>> result = add.delay(1, 2)
+>>> result = add.delay(1, 2)
+>>> result.ready()
+False
+>>> result.ready()
+False
+>>> result.ready()
+False
+```
+
+ここで10秒待ってれば、result.ready()がTrueを返すはずなのだが、いつまでたっても値を返さない。workerの方でエラーが出ていた。
+
+```
+sqlalchemy.exc.ProgrammingError: (psycopg2.ProgrammingError) relation "task_id_sequence" does not exist
+LINE 1: ...us, result, date_done, traceback) VALUES (nextval('task_id_s...
+                                                             ^
+ [SQL: "INSERT INTO celery_taskmeta (id, task_id, status, result, date_done, traceback) VALUES (nextval('task_id_sequence'), %(task_id)s, %(status)s, %(result)s, %(date_done)s, %(traceback)s) RETURNING celery_taskmeta.id"] [parameters: {'traceback': None, 'result': None, 'date_done': datetime.datetime(2016, 7, 25, 5, 56, 32, 951020), 'task_id': '74249288-dc45-40ca-944a-cd0c4a161961', 'status': 'PENDING'}]
+```
+
+ちょうどこの問題について[議論](https://github.com/celery/celery/issues/3213)されており、backendをPostgresqlを使用した時に起きている問題とのこと。2016/05/18に報告されているので新しい問題のようだ。とりあえず回避策としてbackendのデータベースをsqliteにしておいて、修正されたpostgresqlに統一しようと思う。(ここで修正パッチ投げれるようになったらかっこいいな)
+
+[commit](https://github.com/KosukeShimofuji/OpenMultiStack/commit/2894ba8879805bdbd04004d6bcbd7ad051c38491)
+
+migrateし直して、実行すると成功した。
+
+```
+(OpenMultiStack) kosuke@OpenMultiStack ~/OpenMultiStack/django_project $ python manage.py shell
+Python 3.5.1 (default, Jul 22 2016, 10:16:05)
+[GCC 4.9.2] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+(InteractiveConsole)
+>>> from open_multi_stack.tasks import add
+>>> result = add.delay(1, 2)
+>>> result.ready()
+False
+>>> result.ready()
+False
+>>> result.ready()
+(10秒経過)
+True
+>>> result.get()
+3
+```
+
+# RESTful API
+
+クライアントはRESTful APIを用いてOpenMultiStackにインスタンス作成命令やインスタンス破棄命令を送ることができます。APIから直接インスタンステーブルを操作することはせず、Queueテーブルを作成してクライアントからの操作に対応します。
+
+```
+[client]--[restful api]-->[queue]-->[instance]
+```
+
+ * インスタンス作成のFlow
+   * クライアントからPOSTメソッドでインスタンス作成命令をOpenMultiStackに送信する
+   * Queueテーブルのレコードを作成する
+   * celeryの非同期処理を使い、OpenStackのインスタンス作成処理を開始する
+   * インスタンス作成命令の返り値としてQueueレコードの主キーを返す
+   * 非同期のインスタンス作成処理はOpenStackから得られた値をインスタンステーブルに挿入する
+  
+ * インスタンスが作成されたかどうかを確認
+   * クライアントからGETメソッドでQueueレコードの内容を確認し、インスタンスが立ち上がったかを確認する
+
+ * インスタンス破棄のFlow
+   * クライアントからDeleteメソッドでインスタンス破棄命令をOpenMultiStackに送信する
+   * celeryの非同期処理を使い、OpenStackのインスタンス破棄処理を開始する
+   * インスタンス破棄命令の帰り値としてQueueレコードの主キーを返す
+   * 非同期のインスタンス破棄処理はOpenStackからインスタンスが削除されたことを確認して、該当レコードを削除する
+
+ * インスタンスが破棄されたかどうかを確認
+   * クライアントからGETメソッドでQueueテーブルのレコードの内容を確認し、インスタンスが破棄されたかを確認する
+
+## Queueテーブルを定義
+
+[commit](https://github.com/KosukeShimofuji/OpenMultiStack/commit/1c4c073a700c5ef31cf08e890e06a819b94eb5ce)
+
+## django rest frameworkのインストール
+
+```
+$ pip install djangorestframework django-filter 
+```
+
+## django rest frameworkの有効化
+
+[commit](https://github.com/KosukeShimofuji/OpenMultiStack/commit/fdb1ecdd04ef8ce0ac827736cba762e457c69219)
+
+## シリアライザーを定義する
+
+[commit](https://github.com/KosukeShimofuji/OpenMultiStack/commit/021805e10f8b5685be25df7477c711eca4a9df8f)
+
+## ViewSetを定義する
+
+[commit](https://github.com/KosukeShimofuji/OpenMultiStack/commit/f222f286fe48b49edaa62d5eac7173d8056fdade)
+
+## Controllerを定義する
+
+[commit](https://github.com/KosukeShimofuji/OpenMultiStack/commit/938c394e7005f97616c65ff51a9e0b7921f7454b)
+
+## APIをテストする
+
+http://openmultistack.test:8000/api/にアクセスすると以下のような描画がなされます。
+
+![django_rest_framework_testscreen.png]({{site.baseurl}}/images/2016/07/22/django_rest_framework_testscreen.png)
 
 # 参考文献
 
  * http://docs.djangoproject.jp/en/latest/index.html
  * http://www.django-rest-framework.org/
  * http://qiita.com/kimihiro_n/items/86e0a9e619720e57ecd8
+ * http://daigo3.github.io/fullstackpython.github.com/task-queues.html
+ * http://docs.celeryproject.org/en/latest/getting-started/first-steps-with-celery.html
+ * http://docs.celeryproject.org/en/latest/django/first-steps-with-django.html
+ * http://qiita.com/shun666/items/53df90f6d73de2862f1d
+ * http://www.django-rest-framework.org/tutorial/quickstart/
+ * http://racchai.hatenablog.com/entry/2016/04/12/Django_REST_framework_%E8%B6%85%E5%85%A5%E9%96%80#API-経由でArticleを作成してみよう
+
+
 
