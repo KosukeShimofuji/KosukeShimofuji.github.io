@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "OpenMultiStackというものを作りたい"
-date:   2016-07-21 17:00:00 +0900
+date:   2016-07-26 14:00:00 +0900
 categories: python, development, django
 toc: true
 ---
@@ -766,16 +766,12 @@ True
 
 クライアントはRESTful APIを用いてOpenMultiStackにインスタンス作成命令やインスタンス破棄命令を送ることができます。APIから直接インスタンステーブルを操作することはせず、Queueテーブルを作成してクライアントからの操作に対応します。
 
-```
-[client]--[restful api]-->[queue]-->[instance]
-```
-
  * インスタンス作成のFlow
    * クライアントからPOSTメソッドでインスタンス作成命令をOpenMultiStackに送信する
    * Queueテーブルのレコードを作成する
    * celeryの非同期処理を使い、OpenStackのインスタンス作成処理を開始する
    * インスタンス作成命令の返り値としてQueueレコードの主キーを返す
-   * 非同期のインスタンス作成処理はOpenStackから得られた値をインスタンステーブルに挿入する
+   * 非同期のインスタンス作成処理はOpenStackから得られた値をInstanceテーブルに挿入する
   
  * インスタンスが作成されたかどうかを確認
    * クライアントからGETメソッドでQueueレコードの内容を確認し、インスタンスが立ち上がったかを確認する
@@ -783,15 +779,15 @@ True
  * インスタンス破棄のFlow
    * クライアントからDeleteメソッドでインスタンス破棄命令をOpenMultiStackに送信する
    * celeryの非同期処理を使い、OpenStackのインスタンス破棄処理を開始する
-   * インスタンス破棄命令の帰り値としてQueueレコードの主キーを返す
-   * 非同期のインスタンス破棄処理はOpenStackからインスタンスが削除されたことを確認して、該当レコードを削除する
+   * インスタンス破棄命令の返り値としてQueueレコードの主キーを返す
+   * 非同期のインスタンス破棄処理はOpenStackからインスタンスが削除されたことを確認して、Instanceテーブルの該当レコードを削除する
 
  * インスタンスが破棄されたかどうかを確認
    * クライアントからGETメソッドでQueueテーブルのレコードの内容を確認し、インスタンスが破棄されたかを確認する
 
 ## Queueテーブルを定義
 
-[commit](https://github.com/KosukeShimofuji/OpenMultiStack/commit/1c4c073a700c5ef31cf08e890e06a819b94eb5ce)
+[commit](https://github.com/KosukeShimofuji/OpenMultiStack/commit/069eaca9ced7cecd94fa878ab0f497f23067b911)
 
 ## django rest frameworkのインストール
 
@@ -801,25 +797,80 @@ $ pip install djangorestframework django-filter
 
 ## django rest frameworkの有効化
 
-[commit](https://github.com/KosukeShimofuji/OpenMultiStack/commit/fdb1ecdd04ef8ce0ac827736cba762e457c69219)
+[commit](https://github.com/KosukeShimofuji/OpenMultiStack/commit/db917fe29c8bff3d076d3e7f68f4c14e72b20729)
 
 ## シリアライザーを定義する
 
-[commit](https://github.com/KosukeShimofuji/OpenMultiStack/commit/021805e10f8b5685be25df7477c711eca4a9df8f)
+[commit](https://github.com/KosukeShimofuji/OpenMultiStack/commit/7ce034c7729d978bb172147b67747148b1982bce)
 
 ## ViewSetを定義する
 
-[commit](https://github.com/KosukeShimofuji/OpenMultiStack/commit/f222f286fe48b49edaa62d5eac7173d8056fdade)
+[commit](https://github.com/KosukeShimofuji/OpenMultiStack/commit/d5ff35cce4855d05dbd43afef553e41012bdaf4e)
 
-## Controllerを定義する
+## ControllerにapiのURIを追加する
 
-[commit](https://github.com/KosukeShimofuji/OpenMultiStack/commit/938c394e7005f97616c65ff51a9e0b7921f7454b)
+[commit](https://github.com/KosukeShimofuji/OpenMultiStack/commit/7150b4254b7bbefcc0d11ffba000ea53a42a6ac7)
 
 ## APIをテストする
 
 http://openmultistack.test:8000/api/にアクセスすると以下のような描画がなされます。
 
 ![django_rest_framework_testscreen.png]({{site.baseurl}}/images/2016/07/22/django_rest_framework_testscreen.png)
+
+ * Queueの追加
+
+```
+$ curl -X POST http://openmultistack.test:8000/api/queues/
+{"id":50,"status":"queueing","regist_datetime":"2016-07-26T01:29:26.990608Z","instance":null}
+```
+
+ * Queue全体のの閲覧
+
+```
+$ curl -X GET http://openmultistack.test:8000/api/queues/
+[{"id":50,"status":"queueing","regist_datetime":"2016-07-26T01:29:26.990608Z","instance":null},{"id":51,"status":"queueing","regist_datetime":"2016-07-26T01:30:34.131312Z","instance":null},{"id":52,"status":"queueing","regist_datetime":"2016-07-26T01:30:36.313087Z","instance":null}]
+```
+
+ * Queueの個別閲覧
+
+```
+$ curl -X GET http://openmultistack.test:8000/api/queues/51/
+{"id":51,"status":"queueing","regist_datetime":"2016-07-26T01:30:34.131312Z","instance":null}
+```
+
+ * Queueの削除
+
+```
+$ curl -X DELETE http://openmultistack.test:8000/api/queues/51/
+$ curl -X GET http://openmultistack.test:8000/api/queues/51/
+{"detail":"Not found."}
+```
+
+## Signal
+
+Queueを作れるようになりましたので、Queueが登録されてからopenstack clientを呼び出すトリガーを用意する必要があります。
+ここではSignalを使って実装してみたいと思います。
+[Signal](http://docs.djangoproject.jp/en/latest/topics/signals.html)にはモデルのsave及びdeleteの前後にイベントを発生させる機能があります。これを使えば実装できそうです。
+まずはSignalの動きを把握するためにQueueにレコードを書き込んだ時に/tmp/test.txtに文字列を書き込む仕組みを作成してみます。
+
+[commi](https://github.com/KosukeShimofuji/OpenMultiStack/commit/4ab738537a610284494a986e6f631540a8388e6b)
+
+上記commitを反映させてQueueに書き込みを行うとファイルに文字列書き込みを行うことができます。
+
+```
+$ curl -X POST http://openmultistack.test:8000/api/queues/
+{"id":53,"status":"queueing","regist_datetime":"2016-07-26T02:46:54.387192Z","instance":null}
+$ cat /tmp/test.txt
+test 2016/07/26 11:46:54
+```
+
+Queueテーブルに書き込まれた情報を取得するにはどうすればいいのでしょうか？reciverが受け取っているinstansオブジェクトを参照することで値を得ることができます。
+
+```
+str(instance.id)
+```
+
+QueueレコードのIDが取得できればQueueテーブルとOpenStack Clientとの連携はできそうです。
 
 # 参考文献
 
@@ -832,6 +883,6 @@ http://openmultistack.test:8000/api/にアクセスすると以下のような�
  * http://qiita.com/shun666/items/53df90f6d73de2862f1d
  * http://www.django-rest-framework.org/tutorial/quickstart/
  * http://racchai.hatenablog.com/entry/2016/04/12/Django_REST_framework_%E8%B6%85%E5%85%A5%E9%96%80#API-経由でArticleを作成してみよう
-
+ * http://www.koopman.me/2015/01/django-signals-example/
 
 
