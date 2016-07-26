@@ -846,7 +846,7 @@ $ curl -X GET http://openmultistack.test:8000/api/queues/51/
 {"detail":"Not found."}
 ```
 
-## Signal
+# Signal
 
 Queueを作れるようになりましたので、Queueが登録されてからopenstack clientを呼び出すトリガーを用意する必要があります。
 ここではSignalを使って実装してみたいと思います。
