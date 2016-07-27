@@ -8,9 +8,9 @@
 # Site settings
 title: Kosuke Shimofuji's Home Page
 email: kosuke.shimofuji@gmail.com
-copyright: "&copy; 2016 Kosuke Shimofuji. All rights reaerved." 
+copyright: "&copy; 2016 Kosuke Shimofuji. All rights reserved." 
 description: > # this means to ignore newlines until "baseurl:"
-    Information Security, Security Research.
+    Think about cyber warefare, business warfare.
 permalink: /:year/:month/:day/:title/
 baseurl: "" # the subpath of your site, e.g. /blog
 url: "https://kosukeshimofuji.jp" # the base hostname & protocol for your site
@@ -23,4 +23,4 @@ markdown: kramdown
 # add gems 
 gems:
       - jekyll-toc
-
+      - jekyll-amazon

@@ -25,7 +25,20 @@ body {
     font-kerning: normal;
 }
 
+table {
+    border : 1px solid black;
+    margin-bottom: 1em;
+}
 
+table th{
+    padding: 5px;
+    border : 1px solid black;
+}
+
+table td{
+    padding: 5px;
+    border : 1px solid black;
+}
 
 /**
  * Set `margin-bottom` to maintain vertical rhythm

@@ -6,12 +6,12 @@ categories: jekyll
 toc: true
 ---
 
-## jekyll - 静的サイトジェネレータ
+# jekyll - 静的サイトジェネレータ
 
 markdown,liquid,sassなどをHTMLにコンバートするためのフレームワーク。ローカルコンピュータ側でコンバート処理は完了するため、PHPやCGIなどの動的にHTMLを生成する必要がない。 Github pageでホストする場合は、jekyllがgithub側で動作しているのでテンプレートだけで生成することができる。
 静的サイトジェネレータを利用するレバサーバリソースを消費することなく、セキュリティ的にも好ましいサイトの公開が可能となる。
 
-## Github pageにJekyllで生成したHTMLを公開する
+# Github pageにJekyllで生成したHTMLを公開する
 
 jekyllを利用して初期のHTMLを公開するのは5分程度で実行することができる。
 
@@ -31,7 +31,7 @@ $ jekyll server -H0.0.0.0
 $ git add -A && git commit -m "first commit" && git push origin master
 ```
 
-## 初期のjekyllの構成を抑えておく
+# 初期のjekyllの構成を抑えておく
 
 jekyllは自分でカスタマイズすることを前提に使うものだと思う。なので初期の構成を抑えて、jekyllの動作を把握するのは重要。
 
@@ -79,7 +79,7 @@ KosukeShimofuji.github.io/
 13 directories, 24 files
 ```
 
-## draftsを追加する
+# draftsを追加する
 
 記事の精査をするための下書きの仕組みを導入する
 
@@ -88,7 +88,7 @@ $ mkdir _drafts
 $ jekyll server -H0.0.0.0 -w --drafts
 ```
 
-## syntax highlightを変更する 
+# syntax highlightを変更する 
 
 テーマを[公開](https://github.com/jwarby/jekyll-pygments-themes)されている方がいらっしゃるので使わせてもらう。
 [commit](https://github.com/KosukeShimofuji/KosukeShimofuji.github.io/commit/bd84c2ab6bf0fca73a8a695c4d5e4e9ea6431e2a)
@@ -98,11 +98,11 @@ $ jekyll server -H0.0.0.0 -w --drafts
 facebookのシェアボタンなどはOGPの値を読み取って処理を行うため、OGPの設定を行う必要があった。
 [commit](https://github.com/KosukeShimofuji/KosukeShimofuji.github.io/commit/f911a168fa4677107c252a9baac354fe5bbec489)
 
-## シェアボタンを追加する
+# シェアボタンを追加する
 
 twitter,hatena,facebook,google,pocketからシェアボタンの作り方を閲覧して、[コミット](https://github.com/KosukeShimofuji/KosukeShimofuji.github.io/commit/529f3f24d93b8607d15bb6d8470c65fae6ca266a)を作成した。
 
-## TOCを追加する
+# TOCを追加する
 
 ```
 gem install jekyll-toc
@@ -110,13 +110,13 @@ gem install jekyll-toc
 
 [commit](https://github.com/KosukeShimofuji/KosukeShimofuji.github.io/commit/4dcc841aab704b13ca8b4e32384e918b26da1bc3)
 
-## ローカルで生成したファイルをgithub pageに公開する運用に変更する
+# ローカルで生成したファイルをgithub pageに公開する運用に変更する
 
 github pageではjekyll pluginがsafe modeになっているため使えないので、ローカルで生成したファイル群をgh-pagesに追加するような運用にする。 
 masterにコミットされたファイルがgithub pageとして公開されるのでソースコードの管理はsoure branchで行い、jekyllで生成したファイルをmasterブランチに展開する。
 この作業を簡単にする[スクリプト](https://github.com/KosukeShimofuji/KosukeShimofuji.github.io/blob/source/publish.sh)を書いておく。
 
-## カスタムドメインを設定する。
+# カスタムドメインを設定する。
 
 jekyllとは関係ないが、github pageのCNAMEの設定を行う。
 
@@ -144,7 +144,7 @@ dns02.muumuu-domain.com.
 
 上記のようにdnsが設定されれば、カスタムドメインでgithub pageにアクセスすることができる。
 
-## TLSで接続できるようにする
+# TLSで接続できるようにする
 
 [ここ](http://qiita.com/superbrothers/items/95e5723e9bd320094537)を参考にCloudFlareを利用してCloudFlareとGithub Page間をTLS接続できるようにした。 この時点でのDNSの設定は以下のようになっている。
 
@@ -161,19 +161,19 @@ bayan.ns.cloudflare.com.
 Flexible設定はあくまでクライアントからCloudFlare間の通信を暗号化するものなので、CloudFlareは通信を平文で閲覧することができる。
 といってもCDNという仕組みは中間者攻撃し放題の仕組みだと思うので、CloudFlareを通してTLSの設定をするというのはCloudFlareに全幅の信頼を置くということだ。
 
-## Page Rules
+# Page Rules
 
 kosukeshimofuji.jp/*のリクエストを強制的にhttpsに書き換えます。
 
 ![page_rule]({{site.baseurl}}/images/2016/07/01/page_rule.png)
 
-## HSTS
+# HSTS
 
 kosukeshimofuji.jpのリクエストはHTTPSを使用するように指示します。しかしサブドメインは除外します。
 
 ![HSTSk]({{site.baseurl}}/images/2016/07/01/HSTS.png)
 
-## Google Analyticsを設定する
+# Google Analyticsを設定する
 
  * Google Tracking codeを有効にする。
 
@@ -185,28 +185,78 @@ kosukeshimofuji.jpのリクエストはHTTPSを使用するように指示しま
 
 [commit](https://github.com/KosukeShimofuji/KosukeShimofuji.github.io/commit/41bfa05cf7d294b1d947895dfa48ab3cd8a9b5e0)
 
-## Disqusを使用する
+# Disqusを使用する
 
 [disqus.com](https://disqus.com/)に登録して以下のようなコミットを作成する。
 
 [commit](https://github.com/KosukeShimofuji/KosukeShimofuji.github.io/commit/64012602a2fc0fc86a6e5cddf867ca624cf74eac)
 
-## SNSのSVGファイル
+# SNSのSVGファイル
 
 [ここ](https://github.com/tombryan/social-icon-font)のiconを使わせていただいている。
 
-## 参考文献
+# Amazonのリンクを貼る
+
+tokzkさんの[jeykll-amazon](https://github.com/tokzk/jekyll-amazon)を使わせていただく。[この記事](http://okzk.org/blog/jekyll-amazon-gem)を参考に導入した。
+
+```
+$ gem install jekyll-amazon
+```
+
+```
+export ECS_ASSOCIATE_TAG=kosukeshimofu-22
+export AWS_ACCESS_KEY_ID=XXX
+export AWS_SECRET_KEY=XXX
+```
+
+しかし以下のようなエラーが発生して動かない。
+
+```
+jekyll 3.1.6 | Error:  AWS_ACCESS_KEY_ID env variable is not set
+```
+
+ソースを見ると環境変数名が間違っているようだ。
+
+[amazon_tag.rb#L3](https://github.com/tokzk/jekyll-amazon/blob/d4f6113e46d37512726603d30b0d115c2f47d37e/lib/jekyll-amazon/amazon_tag.rb#L3)
+
+以下のようにすれば動く。
+
+```
+export ECS_ASSOCIATE_TAG=kosukeshimofu-22
+export AWS_ACCESS_KEY=XXX
+export AWS_SECRET_KEY=XXX
+```
+
+{% amazon 4102020039 image %}
+
+jekyll-amazon側の小さな間違いだと思うので修正する[PullRequest](https://github.com/tokzk/jekyll-amazon/pull/1)を送信した。
+
+環境変数を毎回設定するのは大変なので、direnvを利用する。
+
+```
+$ wget https://github.com/direnv/direnv/releases/download/v2.9.0/direnv.linux-amd64 -O direnv
+$ chmod 700 direnv
+$ mv direnv local/bin/
+$ echo 'eval "$(direnv hook bash)"' >> ~/.bashrc
+$ cat > .envrc
+export ECS_ASSOCIATE_TAG=kosukeshimofu-22
+export AWS_ACCESS_KEY=XXX
+export AWS_SECRET_KEY=XXX
+CTRL+C
+```
+
+# 参考文献
 
  * https://jekyllrb-ja.github.io/
  * https://shopify.github.io/liquid/
  * https://ja.wikipedia.org/wiki/Sass
  * http://tokkono.cute.coocan.jp/blog/slow/index.php/programming/github-pages-almost-perfect-guide/
  * http://qiita.com/hurutoriya/items/f8dd9c31d8a1050a4be4
- * https://murashun.jp/blog/20150628-01.html
+ * https://murashun.jp/blb6CZHxCs7PloiqqhbfN3rwFNSmNsK3tuO/mW3+FAog/20150628-01.html
  * https://help.github.com/articles/using-a-custom-domain-with-github-pages/
  * http://qiita.com/superbrothers/items/95e5723e9bd320094537
  * http://uzulla.hateblo.jp/entry/2015/02/25/033133
  * https://blog.euonymus.info/cloudflare%E3%81%A7ssl%E3%82%92%E5%B0%8E%E5%85%A5%E3%81%99%E3%82%8B%E6%99%82%E3%81%AE%E6%B3%A8%E6%84%8F/
  * https://teamtreehouse.com/library/build-a-blog-with-jekyll-and-github-pages/building-and-customizing-the-blog/comment-threads
-
+ * http://okzk.org/blog/jekyll-amazon-gem
 
