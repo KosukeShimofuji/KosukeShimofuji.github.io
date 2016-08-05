@@ -137,6 +137,23 @@ for i in servers:
     nova_client.servers.delete(i.id)
 ```
 
+## キーペアの追加と削除
+
+```
+#!/usr/bin/env python
+import time
+from credentials import get_nova_credentials
+from novaclient.client import Client
+
+credentials = get_nova_credentials()
+nova_client = Client(**credentials)
+
+keypair_name = "staging"
+keypair = nova_client.keypairs.create(name=keypair_name)
+print(keypair.private_key)
+keypair.delete
+```
+
 # 参考文献
 
  * http://docs.openstack.org/ja/user-guide/sdk.html

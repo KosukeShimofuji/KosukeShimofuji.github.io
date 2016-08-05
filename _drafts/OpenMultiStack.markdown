@@ -1,7 +1,7 @@
 ---
 layout: post
-title:  "OpenMultiStackというものを作りたい　その2"
-date:   2016-08-02 12:00:00 +0900
+title:  "OpenMultiStackというものを作りたいの続き"
+date:   2016-08-05 10:45:00 +0900
 categories: development
 toc: true
 ---
@@ -63,10 +63,12 @@ $ curl -X POST http://openmultistack.test:8000/api/queues/
 
  * OpenMultiStackはdjangoのSignal機能により、Qeueuテーブルのレコード書き込み時にフックを挟み込みDjeangoキューワーカーのタスクを起動する
    * キューワーカーにOpenStackクライアンの機能を移譲することにより、HTTP通信と切り離すことができる
+   * 初期status = request
+   * タスク処理開始時 = accept
  * Djangoキューワーカーのインスタンス作成処理はQueueレコードとInstanceレコードを操作しながら、インスタンスを作成する
 
 # 参考文献
 
  * https://torina.top/
-
+ * https://www.ibm.com/developerworks/jp/cloud/library/cl-openstack-pythonapis/
 
