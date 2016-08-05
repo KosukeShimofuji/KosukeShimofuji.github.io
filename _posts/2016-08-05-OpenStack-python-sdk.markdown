@@ -1,13 +1,12 @@
 ---
 layout: post
 title:  "OpenStack Python SDKを使ってみる"
-date:   2016-08-02 17:45:00 +0900
+date:   2016-08-05 10:00:00 +0900
 categories: development
 toc: true
 ---
 
 OpenStackにはPythonのSDKが存在するため、PythonからOpenStackを操作する際はRestful apiを叩くより、SDKを使ったほうが楽だそうです。
-本記事はOpenStack Python SDKを利用して、一般的なオペレーションを自動化して、そのノウハウを開発に生かすことを目的とします。
 
 # 開発環境の構築
 
@@ -94,10 +93,53 @@ nova_client = Client(**credentials)
 print(nova_client.servers.list())
 ```
 
+## サーバの作成
+
+```python
+#!/usr/bin/env python
+import time
+from credentials import get_nova_credentials
+from novaclient.client import Client
+
+credentials = get_nova_credentials()
+nova_client = Client(**credentials)
+
+image = nova_client.images.find(name="vmi-debian-8-amd64")
+flavor = nova_client.flavors.find(name="g-1gb")
+instance = nova_client.servers.create(
+    name="test",
+    image=image,
+    flavor=flavor
+)
+
+# Poll at 5 second intervals, until the status is no longer 'BUILD'
+status = instance.status
+while status == 'BUILD':
+    time.sleep(5)
+    # Retrieve the instance again so the status field updates
+    instance = nova_client.servers.get(instance.id)
+    status = instance.status
+print("status: %s" % status)
+```
+
+## すべてのサーバを削除
+
+```python
+#!/usr/bin/env python
+from credentials import get_nova_credentials
+from novaclient.client import Client
+
+credentials = get_nova_credentials()
+nova_client = Client(**credentials)
+
+servers = nova_client.servers.list()
+for i in servers:
+    nova_client.servers.delete(i.id)
+```
+
 # 参考文献
 
  * http://docs.openstack.org/ja/user-guide/sdk.html
  * http://qiita.com/makisyu/items/736ecb82757fb995f0f6
  * https://www.ibm.com/developerworks/jp/cloud/library/cl-openstack-pythonapis/
-
 
