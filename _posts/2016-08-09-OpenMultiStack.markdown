@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "OpenMultiStackというものを作りたいの続き"
-date:   2016-08-05 10:45:00 +0900
+date:   2016-08-09 10:45:00 +0900
 categories: development
 toc: true
 ---
@@ -66,6 +66,12 @@ $ curl -X POST http://openmultistack.test:8000/api/queues/
    * 初期status = request
    * タスク処理開始時 = accept
  * Djangoキューワーカーのインスタンス作成処理はQueueレコードとInstanceレコードを操作しながら、インスタンスを作成する
+
+# 動くようになった
+
+[OpenMultiStack](https://github.com/KosukeShimofuji/OpenMultiStack)
+
+一般化するなら、flavorやosの剪定までできるように成るといいけど、とりあえず自分がやりたいことができるレベルの実装にはなったので、一旦ここで開発を止める。
 
 # 参考文献
 
