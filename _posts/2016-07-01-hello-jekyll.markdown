@@ -245,6 +245,27 @@ export AWS_SECRET_KEY=XXX
 CTRL+C
 ```
 
+# [jekyll-ditaa](https://github.com/matze/jekyll-ditaa)
+
+[ditaa](http://ditaa.sourceforge.net/)というAscii Artからデータグラムを生成してくれるプログラムがある。これをjekyllから使えるようにしてみる。
+
+```
+$ sudo apt-get install ditaa
+$ gem install jekyll-ditaa
+$ mkdir _pluguins && cd _plugins
+$ wget https://raw.githubusercontent.com/matze/jekyll-ditaa/master/ditaa.rb
+```
+
+{% ditaa %}
+/----+  DAAP /-----+-----+ Audio  /--------+
+| PC |<------| RPi | MPD |------->| Stereo |
++----+       +-----+-----+        +--------+
+   |                 ^ ^
+   |     ncmpcpp     | | mpdroid /---------+
+   +--------=--------+ +----=----| Nexus S |
+                                 +---------+
+{% endditaa %}
+
 # 参考文献
 
  * https://jekyllrb-ja.github.io/
