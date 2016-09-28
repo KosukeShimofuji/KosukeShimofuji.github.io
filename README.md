@@ -21,8 +21,8 @@ $ gem install jekyll-ditaa
 ```
 $ cat .envrc
 export ECS_ASSOCIATE_TAG=kosukeshimofu-22
-export AWS_ACCESS_KEY_ID=AKIAJKVKPSDQH6S2KSMQ
-export AWS_SECRET_KEY=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
+export AWS_ACCESS_KEY_ID=XXX
+export AWS_SECRET_KEY=XXX
 $ direnv allow
 ```
 
