@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>go-swaggerとauthentication</title>
+  <meta name="description" content="Swaggerによるrestfulapiの定義ではswaggerの概要とgo-swaggerを使用してRESTfulAPIのデフォルトの挙動を確認した。本記事では、API SERVERとCLIENTを作成し、認証を行った上で、データの追加と読み取りまでを実装することを目標とする。">
+
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="canonical" href="https://kosukeshimofuji.jp/2016/12/06/swagger/">
+  <link rel="alternate" type="application/rss+xml" title="Kosuke Shimofuji's Home Page" href="https://kosukeshimofuji.jp/feed.xml">
+  <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-80482518-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+
+      <meta property="og:url" content="https://kosukeshimofuji.jp/2016/12/06/swagger/" />
+  
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="go-swaggerとauthentication | Kosuke Shimofuji's Home Page" />
+  
+
+
+</head>
+
+
+  <body>
+
+    <header class="site-header">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/">Kosuke Shimofuji's Home Page</a>
+
+    <nav class="site-nav">
+      <a href="#" class="menu-icon">
+        <svg viewBox="0 0 18 15">
+          <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+      </a>
+
+      <div class="trigger">
+        
+          
+          <a class="page-link" href="/about/">About</a>
+          
+        
+          
+        
+          
+        
+          
+          <a class="page-link" href="/links/">Links</a>
+          
+        
+          
+        
+      </div>
+    </nav>
+
+  </div>
+
+</header>
+
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <p class="post-meta">Posted date: <time datetime="2016-12-06T18:00:00+09:00"
+        itemprop="datePublished">2016-12-06 18:00:00 +0900</time></p>
+    <h1 class="post-title" itemprop="name headline">go-swaggerとauthentication</h1>
+  </header>
+
+  
+    <h2>Table of contents</h2>
+  
+  
+  <div class="post-content" itemprop="articleBody">
+  <ul class="section-nav">
+<li class="toc-entry toc-h1"><a href="#生成されるコードについての調査">生成されるコードについての調査</a></li>
+<li class="toc-entry toc-h1"><a href="#サーバコードの生成とビルド">サーバコードの生成とビルド</a></li>
+<li class="toc-entry toc-h1"><a href="#apiのテストと修正">APIのテストと修正</a></li>
+<li class="toc-entry toc-h1"><a href="#クライアントコードの生成とビルド">クライアントコードの生成とビルド</a></li>
+<li class="toc-entry toc-h1"><a href="#認証">認証</a></li>
+<li class="toc-entry toc-h1"><a href="#参考文献">参考文献</a></li>
+</ul><p><a href="https://kosukeshimofuji.jp/2016/12/02/swagger/">Swaggerによるrestful
+apiの定義</a>ではswaggerの概要とgo-swaggerを使用してRESTful
+APIのデフォルトの挙動を確認した。
+本記事では、API SERVERとCLIENTを作成し、認証を行った上で、データの追加と読み取りまでを実装することを目標とする。</p>
+
+<h1 id="section">
+<a id="生成されるコードについての調査" class="anchor" href="#%E7%94%9F%E6%88%90%E3%81%95%E3%82%8C%E3%82%8B%E3%82%B3%E3%83%BC%E3%83%89%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6%E3%81%AE%E8%AA%BF%E6%9F%BB" aria-hidden="true"><span class="octicon octicon-link"></span></a>生成されるコードについての調査</h1>
+
+<p>go-swaggerが生成するコードの詳細をさらに知るには以下のドキュメントと生成されたコードを読んでいく必要がある。</p>
+
+<ul>
+  <li><a href="https://goswagger.io/generate/client.html">API Client</a></li>
+  <li><a href="https://goswagger.io/generate/server.html">API Server</a></li>
+</ul>
+
+<h1 id="section-1">
+<a id="サーバコードの生成とビルド" class="anchor" href="#%E3%82%B5%E3%83%BC%E3%83%90%E3%82%B3%E3%83%BC%E3%83%89%E3%81%AE%E7%94%9F%E6%88%90%E3%81%A8%E3%83%93%E3%83%AB%E3%83%89" aria-hidden="true"><span class="octicon octicon-link"></span></a>サーバコードの生成とビルド</h1>
+
+<p><a href="https://goswagger.io/tutorial/todo-list.html">goswagger.io</a>のTodo List Tutorialの<a href="https://gist.github.com/KosukeShimofuji/7bc60bfaf2173bcade4ea6d637804bee">swaggerの定義</a>を拝借する。
+swaggerの定義からどのように関数名、object名、model名などを決定するかは<a href="https://goswagger.io/use/schemas.html">scheme generator</a>を読めばわかる。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ swagger validate /tmp/swagger.yml
+The swagger spec at "/tmp/swagger.yml" is valid against swagger specification
+2.0
+$ swagger generate server -A TodoList -f /tmp/swagger.yml
+$ tree
+.
+├── cmd
+│   └── todo-list-server
+│       └── main.go
+├── models
+│   ├── error.go
+│   └── item.go
+├── restapi
+   ├── configure_todo_list.go
+   ├── doc.go
+   ├── embedded_spec.go
+   ├── operations
+   │   ├── todo_list_api.go
+   │   └── todos
+   │       ├── get.go
+   │       ├── get_parameters.go
+   │       ├── get_responses.go
+   │       └── get_urlbuilder.go
+   └── server.go
+
+6 directories, 13 files
+
+$ go get github.com/go-openapi/runtime
+$ go get github.com/tylerb/graceful
+$ go get github.com/jessevdk/go-flags
+$ go get golang.org/x/net/context
+$ go get github.com/go-openapi/analysis
+$ go get github.com/go-openapi/loads
+$ go get github.com/go-openapi/spec
+$ go get github.com/go-openapi/validate
+$ go get github.com/gorilla/context
+$ go get github.com/docker/go-units
+$ go install ./cmd/todo-list-server/
+$ todo-list-server -h
+Usage:
+  todo-list-server [OPTIONS]
+
+The product of a tutorial on goswagger.io
+
+Application Options:
+      --scheme=            the listeners to enable, this can be repeated and defaults to the schemes in the swagger spec
+      --cleanup-timeout=   grace period for which to wait before shutting down the server (default: 10s)
+      --max-header-size=   controls the maximum number of bytes the server will read parsing the request header's keys and values, including the request line. It does not limit the size of the request body.
+                           (default: 1MiB)
+      --socket-path=       the unix socket to listen on (default: /var/run/todo-list.sock)
+      --host=              the IP to listen on (default: localhost) [$HOST]
+      --port=              the port to listen on for insecure connections, defaults to a random value [$PORT]
+      --listen-limit=      limit the number of outstanding requests
+      --keep-alive=        sets the TCP keep-alive timeouts on accepted connections. It prunes dead TCP connections ( e.g. closing laptop mid-download) (default: 3m)
+      --read-timeout=      maximum duration before timing out read of the request (default: 30s)
+      --write-timeout=     maximum duration before timing out write of the response (default: 60s)
+      --tls-host=          the IP to listen on for tls, when not specified it's the same as --host [$TLS_HOST]
+      --tls-port=          the port to listen on for secure connections, defaults to a random value [$TLS_PORT]
+      --tls-certificate=   the certificate to use for secure connections [$TLS_CERTIFICATE]
+      --tls-key=           the private key to use for secure conections [$TLS_PRIVATE_KEY]
+      --tls-listen-limit=  limit the number of outstanding requests
+      --tls-keep-alive=    sets the TCP keep-alive timeouts on accepted connections. It prunes dead TCP connections ( e.g. closing laptop mid-download)
+      --tls-read-timeout=  maximum duration before timing out read of the request
+      --tls-write-timeout= maximum duration before timing out write of the response
+
+Help Options:
+  -h, --help               Show this help message
+$ todo-list-server --scheme=http
+2016/12/05 12:53:31 Serving todo list at http://127.0.0.1:47321
+</code></pre>
+</div>
+
+<h1 id="api">
+<a id="apiのテストと修正" class="anchor" href="#api%E3%81%AE%E3%83%86%E3%82%B9%E3%83%88%E3%81%A8%E4%BF%AE%E6%AD%A3" aria-hidden="true"><span class="octicon octicon-link"></span></a>APIのテストと修正</h1>
+
+<p>go-swaggerで生成されたserverはデフォルト状態ではすべてのAPIは未実装になっている。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ curl -i http://127.0.0.1:47321
+HTTP/1.1 501 Not Implemented
+Content-Type: application/io.goswagger.examples.todo-list.v1+json
+Date: Mon, 05 Dec 2016 03:56:38 GMT
+Content-Length: 51
+
+"operation todos.Get has not yet been implemented"
+</code></pre>
+</div>
+
+<p>configure_todo_list.goを<a href="https://github.com/go-swagger/go-swagger/blob/master/examples/tutorials/todo-list/server-complete/restapi/configure_todo_list.go">tutorial</a>を参考に修正することにより、モック的な動作にはなるがAPIを実装することができる。</p>
+
+<div class="language-diff highlighter-rouge">
+<pre class="highlight"><code>webshkiller@wsk-control ~/go/src/github.com/KosukeShimofuji/todos $ git diff
+<span class="gh">diff --git a/restapi/configure_todo_list.go b/restapi/configure_todo_list.go
+index 9c5f86c..47f495b 100644
+</span><span class="gd">--- a/restapi/configure_todo_list.go
+</span><span class="gi">+++ b/restapi/configure_todo_list.go
+</span><span class="gu">@@ -3,23 +3,96 @@ package restapi
+</span> import (
+        "crypto/tls"
+        "net/http"
+<span class="gi">+       "sync"
++       "sync/atomic"
+</span>
+        errors "github.com/go-openapi/errors"
+        runtime "github.com/go-openapi/runtime"
+        middleware "github.com/go-openapi/runtime/middleware"
+<span class="gi">+       "github.com/go-openapi/swag"
+</span>
+<span class="gi">+       "github.com/KosukeShimofuji/todos/models"
+</span>        "github.com/KosukeShimofuji/todos/restapi/operations"
+        "github.com/KosukeShimofuji/todos/restapi/operations/todos"
+ )
+
+<span class="gd">-// This file is safe to edit. Once it exists it will not be overwritten
+-
+</span> //go:generate swagger generate server --target .. --name TodoList --spec ../../../../../../../../tmp/swagger.yml
+
+ func configureFlags(api *operations.TodoListAPI) {
+        // api.CommandLineOptionsGroups = []swag.CommandLineOptionsGroup{ ... }
+ }
+
+<span class="gi">+// This file is safe to edit. Once it exists it will not be overwritten
++
++// the variables we need throughout our implementation
++var items = make(map[int64]*models.Item)
++var lastID int64
++
++var itemsLock = &amp;sync.Mutex{}
++
++func newItemID() int64 {
++       return atomic.AddInt64(&amp;lastID, 1)
++}
++
++func addItem(item *models.Item) error {
++       if item == nil {
++               return errors.New(500, "item must be present")
++       }
++
++       itemsLock.Lock()
++       defer itemsLock.Unlock()
++
++	newID := newItemID()
++	item.ID = newID
++	items[newID] = item
++
++	return nil
++}
++
++func updateItem(id int64, item *models.Item) error {
++       if item == nil {
++               return errors.New(500, "item must be present")
++       }
++
++       itemsLock.Lock()
++       defer itemsLock.Unlock()
++
++       _, exists := items[id]
++       if !exists {
++               return errors.NotFound("not found: item %d", id)
++       }
++
++       item.ID = id
++       items[id] = item
++       return nil
++}
++
++func deleteItem(id int64) error {
++       itemsLock.Lock()
++       defer itemsLock.Unlock()
++
++       _, exists := items[id]
++       if !exists {
++               return errors.NotFound("not found: item %d", id)
++       }
++
++       delete(items, id)
++       return nil
++}
++
++func allItems(since int64, limit int32) (result []*models.Item) {
++       result = make([]*models.Item, 0)
++       for id, item := range items {
++               if len(result) &gt;= int(limit) {
++                       return
++               }
++               if since == 0 || id &gt; since {
++                       result = append(result, item)
++               }
++       }
++       return
++}
++
+</span> func configureAPI(api *operations.TodoListAPI) http.Handler {
+        // configure the api here
+        api.ServeError = errors.ServeError
+<span class="gu">@@ -35,16 +108,31 @@ func configureAPI(api *operations.TodoListAPI) http.Handler {
+</span>        api.JSONProducer = runtime.JSONProducer()
+
+        api.TodosAddOneHandler = todos.AddOneHandlerFunc(func(params todos.AddOneParams) middleware.Responder {
+<span class="gd">-               return middleware.NotImplemented("operation todos.AddOne has not yet been implemented")
+</span><span class="gi">+               if err := addItem(params.Body); err != nil {
++                       return todos.NewAddOneDefault(500).WithPayload(&amp;models.Error{Code: 500, Message: swag.String(err.Error())})
++               }
++               return todos.NewAddOneCreated().WithPayload(params.Body)
+</span>        })
+        api.TodosDestroyOneHandler = todos.DestroyOneHandlerFunc(func(params todos.DestroyOneParams) middleware.Responder {
+<span class="gd">-               return middleware.NotImplemented("operation todos.DestroyOne has not yet been implemented")
+</span><span class="gi">+               delete(items, params.ID)
++               return todos.NewDestroyOneNoContent()
+</span>        })
+        api.TodosFindTodosHandler = todos.FindTodosHandlerFunc(func(params todos.FindTodosParams) middleware.Responder {
+<span class="gd">-               return middleware.NotImplemented("operation todos.FindTodos has not yet been implemented")
+</span><span class="gi">+               mergedParams := todos.NewFindTodosParams()
++               mergedParams.Since = swag.Int64(0)
++               if params.Since != nil {
++                       mergedParams.Since = params.Since
++               }
++               if params.Limit != nil {
++                       mergedParams.Limit = params.Limit
++               }
++               return todos.NewFindTodosOK().WithPayload(allItems(*mergedParams.Since, *mergedParams.Limit))
+</span>        })
+        api.TodosUpdateOneHandler = todos.UpdateOneHandlerFunc(func(params todos.UpdateOneParams) middleware.Responder {
+<span class="gd">-               return middleware.NotImplemented("operation todos.UpdateOne has not yet been implemented")
+</span><span class="gi">+               if err := updateItem(params.ID, params.Body); err != nil {
++                       return todos.NewUpdateOneDefault(500).WithPayload(&amp;models.Error{Code: 500, Message: swag.String(err.Error())})
++               }
++               return todos.NewUpdateOneOK().WithPayload(params.Body)
+</span>        })
+
+        api.ServerShutdown = func() {}
+</code></pre>
+</div>
+
+<ul>
+  <li>ITEMの追加</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ curl -i 127.0.0.1:59695 -d "{\"description\":\"Add item 001\"}" -H 'Content-Type: application/io.goswagger.examples.todo-list.v1+json'
+HTTP/1.1 201 Created
+Content-Type: application/io.goswagger.examples.todo-list.v1+json
+Date: Mon, 05 Dec 2016 06:15:28 GMT
+Content-Length: 38
+
+{"description":"Add item 001","id":1}
+
+$ curl -i 127.0.0.1:59695 -d "{\"description\":\"Add item 002\"}" -H 'Content-Type: application/io.goswagger.examples.todo-list.v1+json'
+HTTP/1.1 201 Created
+Content-Type: application/io.goswagger.examples.todo-list.v1+json
+Date: Mon, 05 Dec 2016 06:16:00 GMT
+Content-Length: 38
+
+{"description":"Add item 002","id":2}
+</code></pre>
+</div>
+
+<ul>
+  <li>ITEMの閲覧</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ curl -i 127.0.0.1:59695
+HTTP/1.1 200 OK
+Content-Type: application/io.goswagger.examples.todo-list.v1+json
+Date: Mon, 05 Dec 2016 06:16:40 GMT
+Content-Length: 78
+
+[{"description":"Add item 001","id":1},{"description":"Add item 002","id":2}]
+</code></pre>
+</div>
+
+<ul>
+  <li>ITEMの編集</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ curl -i -X PUT 127.0.0.1:59695/1 -d "{\"description\":\"modify\"}" -H 'Content-Type: application/io.goswagger.examples.todo-list.v1+json'
+HTTP/1.1 200 OK
+Content-Type: application/io.goswagger.examples.todo-list.v1+json
+Date: Mon, 05 Dec 2016 06:19:24 GMT
+Content-Length: 32
+
+{"description":"modify","id":1}
+
+$ curl -i 127.0.0.1:59695
+HTTP/1.1 200 OK
+Content-Type: application/io.goswagger.examples.todo-list.v1+json
+Date: Mon, 05 Dec 2016 06:19:43 GMT
+Content-Length: 72
+
+[{"description":"modify","id":1},{"description":"Add item 002","id":2}]
+</code></pre>
+</div>
+
+<ul>
+  <li>ITEMの削除</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ curl -i -X DELETE 127.0.0.1:59695/1
+HTTP/1.1 204 No Content
+Content-Type: application/io.goswagger.examples.todo-list.v1+json
+Date: Mon, 05 Dec 2016 06:20:32 GMT
+
+$ curl -i 127.0.0.1:59695
+HTTP/1.1 200 OK
+Content-Type: application/io.goswagger.examples.todo-list.v1+json
+Date: Mon, 05 Dec 2016 06:20:39 GMT
+Content-Length: 40
+
+[{"description":"Add item 002","id":2}]
+</code></pre>
+</div>
+
+<h1 id="section-2">
+<a id="クライアントコードの生成とビルド" class="anchor" href="#%E3%82%AF%E3%83%A9%E3%82%A4%E3%82%A2%E3%83%B3%E3%83%88%E3%82%B3%E3%83%BC%E3%83%89%E3%81%AE%E7%94%9F%E6%88%90%E3%81%A8%E3%83%93%E3%83%AB%E3%83%89" aria-hidden="true"><span class="octicon octicon-link"></span></a>クライアントコードの生成とビルド</h1>
+
+<p>クライアントを生成して、サーバにリクエストを飛ばしてみる。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ todo-list-server --scheme=http
+2016/12/05 17:47:00 Serving todo list at http://127.0.0.1:53283
+</code></pre>
+</div>
+
+<p>go-swaggerでクライアント関連のコードを生成する。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ swagger generate client -A TodoList -f /tmp/swagger.yml
+$ tree
+.
+├── client
+    ├── todo_list_client.go
+    └── todos
+        ├── add_one_parameters.go
+        ├── add_one_responses.go
+        ├── destroy_one_parameters.go
+        ├── destroy_one_responses.go
+        ├── find_todos_parameters.go
+        ├── find_todos_responses.go
+        ├── todos_client.go
+        ├── update_one_parameters.go
+        └── update_one_responses.go
+$ go get github.com/go-openapi/spec
+$ go get github.com/go-openapi/strfmt
+$ go get github.com/go-openapi/runtime/client
+</code></pre>
+</div>
+
+<p>生成されたコードを利用すれば、すぐにクライアントを書くことができる。</p>
+
+<ul>
+  <li>client.go</li>
+</ul>
+
+<div class="language-go highlighter-rouge">
+<pre class="highlight"><code><span class="k">package</span><span class="x"> </span><span class="n">main</span><span class="x">
+
+</span><span class="k">import</span><span class="x"> </span><span class="p">(</span><span class="x">
+        </span><span class="s">"fmt"</span><span class="x">
+        </span><span class="s">"log"</span><span class="x">
+        </span><span class="n">_</span><span class="x"> </span><span class="s">"reflect"</span><span class="x">
+
+        </span><span class="n">apiclient</span><span class="x"> </span><span class="s">"github.com/KosukeShimofuji/todos/client"</span><span class="x">
+        </span><span class="s">"github.com/KosukeShimofuji/todos/client/todos"</span><span class="x">
+        </span><span class="s">"github.com/KosukeShimofuji/todos/models"</span><span class="x">
+        </span><span class="n">httptransport</span><span class="x"> </span><span class="s">"github.com/go-openapi/runtime/client"</span><span class="x">
+        </span><span class="n">_</span><span class="x"> </span><span class="s">"github.com/go-openapi/spec"</span><span class="x">
+        </span><span class="s">"github.com/go-openapi/strfmt"</span><span class="x">
+</span><span class="p">)</span><span class="x">
+
+</span><span class="k">func</span><span class="x"> </span><span class="n">str2ptr</span><span class="p">(</span><span class="n">s</span><span class="x"> </span><span class="kt">string</span><span class="p">)</span><span class="x"> </span><span class="o">*</span><span class="kt">string</span><span class="x"> </span><span class="p">{</span><span class="x">
+        </span><span class="k">return</span><span class="x"> </span><span class="o">&amp;</span><span class="n">s</span><span class="x">
+</span><span class="p">}</span><span class="x">
+
+</span><span class="k">func</span><span class="x"> </span><span class="n">write</span><span class="p">(</span><span class="n">client</span><span class="x"> </span><span class="o">*</span><span class="n">apiclient</span><span class="o">.</span><span class="n">TodoList</span><span class="p">)</span><span class="x"> </span><span class="p">{</span><span class="x">
+        </span><span class="n">item</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="nb">new</span><span class="p">(</span><span class="n">models</span><span class="o">.</span><span class="n">Item</span><span class="p">)</span><span class="x">
+        </span><span class="n">item</span><span class="o">.</span><span class="n">Description</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="n">str2ptr</span><span class="p">(</span><span class="s">"Hello World"</span><span class="p">)</span><span class="x">
+        </span><span class="n">p</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">todos</span><span class="o">.</span><span class="n">NewAddOneParams</span><span class="p">()</span><span class="x">
+        </span><span class="n">p</span><span class="o">.</span><span class="n">SetBody</span><span class="p">(</span><span class="n">item</span><span class="p">)</span><span class="x">
+
+        </span><span class="n">resp</span><span class="p">,</span><span class="x"> </span><span class="n">err</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">client</span><span class="o">.</span><span class="n">Todos</span><span class="o">.</span><span class="n">AddOne</span><span class="p">(</span><span class="n">p</span><span class="p">)</span><span class="x">
+        </span><span class="k">if</span><span class="x"> </span><span class="n">err</span><span class="x"> </span><span class="o">!=</span><span class="x"> </span><span class="no">nil</span><span class="x"> </span><span class="p">{</span><span class="x">
+                </span><span class="n">log</span><span class="o">.</span><span class="n">Fatal</span><span class="p">(</span><span class="n">err</span><span class="p">)</span><span class="x">
+        </span><span class="p">}</span><span class="x">
+        </span><span class="n">fmt</span><span class="o">.</span><span class="n">Printf</span><span class="p">(</span><span class="s">"%#v</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span><span class="x"> </span><span class="n">resp</span><span class="o">.</span><span class="n">Payload</span><span class="p">)</span><span class="x">
+</span><span class="p">}</span><span class="x">
+
+</span><span class="k">func</span><span class="x"> </span><span class="n">read</span><span class="p">(</span><span class="n">client</span><span class="x"> </span><span class="o">*</span><span class="n">apiclient</span><span class="o">.</span><span class="n">TodoList</span><span class="p">)</span><span class="x"> </span><span class="p">{</span><span class="x">
+        </span><span class="n">p</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">todos</span><span class="o">.</span><span class="n">NewFindTodosParams</span><span class="p">()</span><span class="x">
+
+        </span><span class="n">resp</span><span class="p">,</span><span class="x"> </span><span class="n">err</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">client</span><span class="o">.</span><span class="n">Todos</span><span class="o">.</span><span class="n">FindTodos</span><span class="p">(</span><span class="n">p</span><span class="p">)</span><span class="x">
+        </span><span class="k">if</span><span class="x"> </span><span class="n">err</span><span class="x"> </span><span class="o">!=</span><span class="x"> </span><span class="no">nil</span><span class="x"> </span><span class="p">{</span><span class="x">
+                </span><span class="n">log</span><span class="o">.</span><span class="n">Fatal</span><span class="p">(</span><span class="n">err</span><span class="p">)</span><span class="x">
+        </span><span class="p">}</span><span class="x">
+        </span><span class="n">fmt</span><span class="o">.</span><span class="n">Printf</span><span class="p">(</span><span class="s">"%#v</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span><span class="x"> </span><span class="n">resp</span><span class="o">.</span><span class="n">Payload</span><span class="p">)</span><span class="x">
+</span><span class="p">}</span><span class="x">
+
+</span><span class="k">func</span><span class="x"> </span><span class="n">main</span><span class="p">()</span><span class="x"> </span><span class="p">{</span><span class="x">
+        </span><span class="c">// create the transport</span><span class="x">
+        </span><span class="n">transport</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">httptransport</span><span class="o">.</span><span class="n">New</span><span class="p">(</span><span class="s">"127.0.0.1:54931"</span><span class="p">,</span><span class="x"> </span><span class="s">"/"</span><span class="p">,</span><span class="x"> </span><span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">"http"</span><span class="p">})</span><span class="x">
+
+        </span><span class="c">// create the API client, with the transport</span><span class="x">
+        </span><span class="n">client</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">apiclient</span><span class="o">.</span><span class="n">New</span><span class="p">(</span><span class="n">transport</span><span class="p">,</span><span class="x"> </span><span class="n">strfmt</span><span class="o">.</span><span class="n">Default</span><span class="p">)</span><span class="x">
+        </span><span class="n">fmt</span><span class="o">.</span><span class="n">Println</span><span class="p">(</span><span class="s">"[+] Execute AddOne"</span><span class="p">)</span><span class="x">
+        </span><span class="n">write</span><span class="p">(</span><span class="n">client</span><span class="p">)</span><span class="x">
+        </span><span class="n">fmt</span><span class="o">.</span><span class="n">Println</span><span class="p">(</span><span class="s">"[+] Execute FindTodos"</span><span class="p">)</span><span class="x">
+        </span><span class="n">read</span><span class="p">(</span><span class="n">client</span><span class="p">)</span><span class="x">
+</span><span class="p">}</span><span class="x">
+</span></code></pre>
+</div>
+
+<ul>
+  <li>実行</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ go run client.go
+[+] Execute AddOne
+&amp;models.Item{Completed:false, Description:(*string)(0xc4200f6d60), ID:9}
+[+] Execute FindTodos
+[]*models.Item{(*models.Item)(0xc42031cce0), (*models.Item)(0xc42031cd00), (*models.Item)(0xc42031cd20), (*models.Item)(0xc42031cd40), (*models.Item)(0xc42031cda0), (*models.Item)(0xc42031cdc0), (*models.Item)(0xc42031ce00), (*models.Item)(0xc42031ce20), (*models.Item)(0xc42031ce40)}
+</code></pre>
+</div>
+
+<h1 id="section-3">
+<a id="認証" class="anchor" href="#%E8%AA%8D%E8%A8%BC" aria-hidden="true"><span class="octicon octicon-link"></span></a>認証</h1>
+
+<p>本項でははAPI KEYによる認証機能を追加する。</p>
+
+<ul>
+  <li><a href="https://github.com/go-swagger/go-swagger/blob/master/examples/authentication/README.md">Authentication sample</a></li>
+</ul>
+
+<p>クライアント側はgo-openapi/runtime/clientにより以下の認証スキームが提供されている。</p>
+
+<ul>
+  <li><a href="https://godoc.org/github.com/go-openapi/runtime/client#BasicAuth">BasicAuth</a></li>
+  <li><a href="https://godoc.org/github.com/go-openapi/runtime/client#APIKeyAuth">APIKeyAuth</a></li>
+  <li><a href="https://godoc.org/github.com/go-openapi/runtime/client#BearerToken">BearerToken</a></li>
+</ul>
+
+<p>まずはswagger.ymlを編集して-Pオプションをつけてサーバを作り直す。restapi/configure_todo_list.goは最初のserver用のコード生成時のみ生成されるので退避する必要はない。</p>
+
+<ul>
+  <li>swagger.ymlの編集内容</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ diff -u /tmp/swagger.yml.backup /tmp/swagger.yml
+--- /tmp/swagger.yml.backup     2016-12-06 17:31:20.704621643 +0900
++++ /tmp/swagger.yml    2016-12-06 17:39:03.342823898 +0900
+@@ -8,6 +8,13 @@
+ - application/json
+ produces:
+ - application/json
++securityDefinitions:
++  key:
++    type: apiKey
++    in: header
++    name: x-token
++security:
++  - key: []
+ schemes:
+ - http
+ - https
+@@ -117,3 +124,5 @@
+         format: int64
+       message:
+         type: string
++  principal:
++    type: string
+</code></pre>
+</div>
+
+<ul>
+  <li>-Pオプションをつけてserver用のコードを生成する。</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ swagger generate server -A TodoList -P models.Principal -f /tmp/swagger.yml
+</code></pre>
+</div>
+
+<ul>
+  <li>restapi/configure_todo_list.goに手を加える</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code><span class="gh">diff --git a/restapi/configure_todo_list.go b/restapi/configure_todo_list.go
+index b03b1d1..bf66d2d 100644
+</span><span class="gd">--- a/restapi/configure_todo_list.go
+</span><span class="gi">+++ b/restapi/configure_todo_list.go
+</span><span class="gu">@@ -107,17 +107,27 @@ func configureAPI(api *operations.TodoListAPI) http.Handler {
+</span>
+        api.JSONProducer = runtime.JSONProducer()
+
+<span class="gd">-       api.TodosAddOneHandler = todos.AddOneHandlerFunc(func(params todos.AddOneParams) middleware.Responder {
+</span><span class="gi">+       // Applies when the "x-token" header is set
++       api.KeyAuth = func(token string) (*models.Principal, error) {
++               if token == "abcdefuvwxyz" {
++                       prin := models.Principal(token)
++                       return &amp;prin, nil
++               }
++               api.Logger("Access attempt with incorrect api key auth: %s", token)
++               return nil, errors.New(401, "incorrect api key auth")
++       }
++
++       api.TodosAddOneHandler = todos.AddOneHandlerFunc(func(params todos.AddOneParams, principal *models.Principal) middleware.Responder {
+</span>                if err := addItem(params.Body); err != nil {
+                        return todos.NewAddOneDefault(500).WithPayload(&amp;models.Error{Code: 500, Message: swag.String(err.Error())})
+                }
+                return todos.NewAddOneCreated().WithPayload(params.Body)
+        })
+<span class="gd">-       api.TodosDestroyOneHandler = todos.DestroyOneHandlerFunc(func(params todos.DestroyOneParams) middleware.Responder {
+</span><span class="gi">+       api.TodosDestroyOneHandler = todos.DestroyOneHandlerFunc(func(params todos.DestroyOneParams, principal *models.Principal) middleware.Responder {
+</span>                delete(items, params.ID)
+                return todos.NewDestroyOneNoContent()
+        })
+<span class="gd">-       api.TodosFindTodosHandler = todos.FindTodosHandlerFunc(func(params todos.FindTodosParams) middleware.Responder {
+</span><span class="gi">+       api.TodosFindTodosHandler = todos.FindTodosHandlerFunc(func(params todos.FindTodosParams, principal *models.Principal) middleware.Responder {
+</span>                mergedParams := todos.NewFindTodosParams()
+                mergedParams.Since = swag.Int64(0)
+                if params.Since != nil {
+<span class="gu">@@ -128,7 +138,7 @@ func configureAPI(api *operations.TodoListAPI) http.Handler {
+</span>                }
+                return todos.NewFindTodosOK().WithPayload(allItems(*mergedParams.Since, *mergedParams.Limit))
+        })
+<span class="gd">-       api.TodosUpdateOneHandler = todos.UpdateOneHandlerFunc(func(params todos.UpdateOneParams) middleware.Responder {
+</span><span class="gi">+       api.TodosUpdateOneHandler = todos.UpdateOneHandlerFunc(func(params todos.UpdateOneParams, principal *models.Principal) middleware.Responder {
+</span>                if err := updateItem(params.ID, params.Body); err != nil {
+                        return todos.NewUpdateOneDefault(500).WithPayload(&amp;models.Error{Code: 500, Message: swag.String(err.Error())})
+                }
+</code></pre>
+</div>
+
+<ul>
+  <li>読み込みテスト</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ curl -i http://127.0.0.1:59302
+HTTP/1.1 401 Unauthorized
+Content-Type: application/json
+Date: Tue, 06 Dec 2016 08:52:40 GMT
+Content-Length: 64
+
+{"code":401,"message":"unauthenticated for invalid credentials"}
+$ curl -i http://127.0.0.1:59302 -H 'Content-Type: application/json' -H 'X-Token: abcdefuvwxyz'
+HTTP/1.1 200 OK
+Content-Type: application/json
+Date: Tue, 06 Dec 2016 08:55:06 GMT
+Content-Length: 3
+
+[]
+$ curl -i http://127.0.0.1:59302 -H 'Content-Type: application/json' -H 'X-Token: XXX'
+curl: (52) Empty reply from server
+</code></pre>
+</div>
+
+<ul>
+  <li>書き込みテスト</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ curl -i http://127.0.0.1:59302 -H 'Content-Type: application/json' -d "{\"description\":\"Hello World\"}" 
+HTTP/1.1 401 Unauthorized
+Content-Type: application/json
+Date: Tue, 06 Dec 2016 08:59:07 GMT
+Content-Length: 64
+
+{"code":401,"message":"unauthenticated for invalid credentials"}
+$ curl -i http://127.0.0.1:59302 -H 'Content-Type: application/json' -H 'X-Token: abcdefuvwxyz' -d "{\"description\":\"Hello World\"}" 
+HTTP/1.1 201 Created
+Content-Type: application/json
+Date: Tue, 06 Dec 2016 08:59:39 GMT
+Content-Length: 37
+
+{"description":"Hello World","id":1}
+</code></pre>
+</div>
+
+<h1 id="section-4">
+<a id="参考文献" class="anchor" href="#%E5%8F%82%E8%80%83%E6%96%87%E7%8C%AE" aria-hidden="true"><span class="octicon octicon-link"></span></a>参考文献</h1>
+
+<ul>
+  <li>https://goswagger.io/</li>
+  <li>https://github.com/go-swagger/go-swagger</li>
+  <li>https://github.com/go-swagger/go-swagger/issues/661</li>
+  <li>https://github.com/naoina/denco</li>
+  <li>http://cuto.unirita.co.jp/gostudy/</li>
+</ul>
+
+
+  </div>
+
+  <style type="text/css">
+<!--
+/*** sahre button settings ***/
+
+/* adjusting twitter share button */
+ul.share-buttons{
+  margin : 0;
+  list-style: none;
+  padding: 0;
+}
+
+ul.share-buttons li{
+  display: inline;
+}
+
+/* adjusting facebook share button */
+.fb_iframe_widget > span {
+  vertical-align: baseline !important;
+}
+
+/* adjusting google share button */
+#___plusone_0{ width:72px !important; }
+.___plusone_0 > span {
+  vertical-align: baseline !important;
+}
+
+/* adjusting pocket share button */
+.pocket-btn {
+    display: inline;
+}
+-->
+</style>
+
+<!-- twitter share script -->
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+<!-- hatena share script -->
+<script type="text/javascript" src="https://b.st-hatena.com/js/bookmark_button.js" charset="utf-8" async="async"></script>
+
+<!-- facebook sahre script -->
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/ja_JP/sdk.js#xfbml=1&version=v2.6";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<!-- google sahre script -->
+<script src="https://apis.google.com/js/platform.js" async defer>
+ang: 'ja'}
+</script>
+
+<script type="text/javascript">!function(d,i){if(!d.getElementById(i)){var j=d.createElement("script");j.id=i;j.src="https://widgets.getpocket.com/v1/j/btn.js?v=1";var w=d.getElementById(i);d.body.appendChild(j);}}(document,"pocket-btn-js");</script>
+
+<ul class="share-buttons" >
+    <li>
+        <!-- twitter share button -->
+    <a href="https://twitter.com/share"
+       class="twitter-share-button"
+       data-url="https://kosukeshimofuji.jp/2016/12/06/swagger/"
+       data-text="go-swaggerとauthentication | Kosuke Shimofuji's Home Page" >Tweet</a>
+    </li>
+    <li>
+        <!-- facebook share button -->
+        <div class="fb-share-button"
+             data-href="https://kosukeshimofuji.jp/2016/12/06/swagger/"
+             data-layout="button_count"></div>
+    </li>
+    <li>
+        <!-- hatena share button -->
+        <a href="http://b.hatena.ne.jp/entry/https://kosukeshimofuji.jp/2016/12/06/swagger/"
+           class="hatena-bookmark-button"
+           data-hatena-bookmark-layout="simple-balloon"
+           data-hatena-bookmark-title="go-swaggerとauthentication | Kosuke Shimofuji's Home Page"
+           data-hatena-bookmark-lang="ja"
+           title="Share on Hatena">
+            <img src="https://b.st-hatena.com/images/entry-button/button-only@2x.png"
+                 alt="Share on Hatena" width="20" height="20" style="border: none;" />
+        </a>
+    </li>
+    <li>
+        <!-- google share button -->
+        <div class="g-plusone"
+             data-href="https://kosukeshimofuji.jp/2016/12/06/swagger/"></div>
+    </li>
+    <li>
+        <!-- pocket share button -->
+        <a data-pocket-label="pocket" data-pocket-count="horizontal" class="pocket-btn" data-lang="en"></a>
+    </li>
+</ul>
+
+
+  <br>
+  <div id="disqus_thread"></div>
+<script>
+    /**
+     *  RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
+     *  LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables
+     */
+    /*
+    var disqus_config = function () {
+        this.page.url = PAGE_URL;  // Replace PAGE_URL with your page's canonical URL variable
+        this.page.identifier = PAGE_IDENTIFIER; // Replace PAGE_IDENTIFIER with your page's unique identifier variable
+    };
+    */
+    (function() {  // DON'T EDIT BELOW THIS LINE
+        var d = document, s = d.createElement('script');
+        
+        s.src = '//kosukesimofuji-hp.disqus.com/embed.js';
+        
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+
+</article>
+
+      </div>
+    </div>
+
+    <footer class="site-footer">
+  <div class="site-footer-wrapper">
+    <div id="footer-description">Think about cyber warfare, business warfare.
+</div>
+    <br>
+    <a href="mailto:kosuke.shimofuji@gmail.com"><?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 17.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1 Tiny//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11-tiny.dtd">
+<svg version="1.1" baseProfile="tiny" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+	 x="0px" y="0px" width="30px" height="30px" viewBox="0 0 100 100" overflow="scroll" xml:space="preserve">
+<path fill="#231F20" d="M50,0C22.386,0,0,22.386,0,50s22.386,50,50,50s50-22.386,50-50S77.614,0,50,0z M19.188,72.951V72.85
+	l24.708-23.145l6.103,5.597l5.967-5.472l24.682,23.121H19.188z M80.81,70.861l-23.635-22.14L80.81,27.048L49.999,50L19.188,27.048
+	l23.499,21.547L19.188,70.609V27.048H80.81V70.861z"/>
+</svg>
+</a>
+    <a href="/feed.xml"><?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 17.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1 Tiny//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11-tiny.dtd">
+<svg version="1.1" baseProfile="tiny" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+	 x="0px" y="0px" width="30px" height="30px" viewBox="0 0 100 100" overflow="visible" xml:space="preserve">
+<path fill="#231F20" d="M50,0C22.386,0,0,22.386,0,50s22.386,50,50,50s50-22.386,50-50S77.614,0,50,0z M35.379,70.782h-0.02
+	c-3.111,0-5.646-2.531-5.658-5.641c-0.002-3.119,2.529-5.668,5.646-5.68c3.133,0,5.669,2.529,5.673,5.641
+	C41.03,68.221,38.502,70.768,35.379,70.782z M51.874,70.718c-0.401-11.855-9.782-20.759-22.214-21.064l-0.02-7.672
+	c16.59,0.357,29.486,12.781,29.916,28.711L51.874,70.718z M67.979,70.658c-0.446-20.681-17.11-36.818-38.362-37.105l-0.021-7.674
+	C55.152,26.154,75.201,45.65,75.66,70.625L67.979,70.658z"/>
+</svg>
+</a>
+    <a href="https://github.com/KosukeShimofuji"><?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 17.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1 Tiny//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11-tiny.dtd">
+<svg version="1.1" baseProfile="tiny" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+	 x="0px" y="0px" width="30px" height="30px" viewBox="0 0 100 100" xml:space="preserve">
+<path fill="#231F20" d="M50.141,61.976c3.769,0,6.824,1.903,6.824,4.251s-3.055,4.251-6.824,4.251s-6.824-1.903-6.824-4.251
+	S46.372,61.976,50.141,61.976z M49.23,29.299c2.584,0,4.678,2.632,4.678,5.878s-2.094,5.878-4.678,5.878s-4.678-2.632-4.678-5.878
+	S46.646,29.299,49.23,29.299z M50,0C22.386,0,0,22.386,0,50s22.386,50,50,50s50-22.386,50-50S77.614,0,50,0z M62.501,35.182
+	c0,7.247-5.84,13.135-13.098,13.278c-1.916,3.813-0.003,5.578,1.468,6.328c0,0,0.298,0.151,0.95,0.388
+	c0.239,0.076,0.391,0.107,0.391,0.107s-0.002,0.011-0.003,0.03c0.457,0.155,1.04,0.338,1.76,0.534
+	c0.876,0.146,1.723,0.347,2.533,0.601c0.003,0,0.008,0.002,0.013,0.003c0,0,0.013,0.003,0.017,0.006
+	c1.336,0.421,2.569,0.983,3.664,1.659c0.451,0.259,0.86,0.529,1.16,0.798l0.002,0.002c2.335,1.799,3.819,4.205,3.981,6.916
+	c0.364,6.147-6.211,11.533-14.684,12.029C42.18,78.357,35.016,73.777,34.65,67.63c-0.257-4.348,2.959-8.313,7.859-10.438
+	c-5.216-4.507-2.277-8.819-0.432-10.731c-3.786-2.345-6.308-6.519-6.308-11.279c0-7.337,5.984-13.284,13.365-13.284
+	c2.213,0,4.297,0.537,6.134,1.483c0,0,3.796,1.554,10.098-1.483v8.16h0.002c0,0-1.893,0.859-3.395,1.421
+	C62.314,32.655,62.501,33.897,62.501,35.182z"/>
+</svg>
+
+</a>
+    <a href="https://twitter.com/KosukeShimofuji"><?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 17.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1 Tiny//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11-tiny.dtd">
+<svg version="1.1" baseProfile="tiny" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+	 x="0px" y="0px" width="30px" height="30px" viewBox="0 0 100 100" xml:space="preserve">
+<path fill="#231F20" d="M50,0C22.386,0,0,22.386,0,50s22.386,50,50,50s50-22.386,50-50S77.614,0,50,0z M76.666,38.556
+	c0.023,0.547,0.037,1.096,0.037,1.646c0,16.818-12.801,36.211-36.211,36.211c-7.188,0-13.877-2.106-19.51-5.717
+	c0.996,0.116,2.01,0.177,3.037,0.177c5.963,0,11.449-2.034,15.807-5.448c-5.57-0.102-10.271-3.782-11.891-8.838
+	c0.777,0.148,1.574,0.229,2.395,0.229c1.162,0,2.285-0.156,3.354-0.447C27.862,55.2,23.475,50.056,23.475,43.89
+	c0-0.053,0-0.106,0-0.16c1.717,0.954,3.68,1.526,5.766,1.593c-3.416-2.282-5.662-6.178-5.662-10.594c0-2.332,0.627-4.52,1.723-6.398
+	c6.277,7.699,15.656,12.768,26.234,13.299c-0.219-0.933-0.332-1.904-0.332-2.901C51.203,31.698,56.904,26,63.932,26
+	c3.66,0,6.969,1.545,9.289,4.02c2.9-0.571,5.623-1.63,8.082-3.089c-0.949,2.972-2.969,5.467-5.596,7.041
+	c2.574-0.308,5.027-0.992,7.309-2.004C81.311,34.52,79.152,36.762,76.666,38.556z"/>
+</svg>
+</a>
+    <br><br>
+    <div id="footer-copyright">&copy; 2016 Kosuke Shimofuji. All rights reserved.</div>
+  </div>
+</footer>
+
+
+  </body>
+
+</html>

@@ -1,0 +1,1332 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>OpenMultiStackというものを作りたい</title>
+  <meta name="description" content="事情があってインスタンスを同時に100台程度稼働させたい。インスタンスの稼働時間は30-60分程度になる想定。じゃあOpenStackの出番だろうと思ってたら、著名なopenstack providerには最大20インスタンスしか同時に立ち上げられないような制限が入っていることに気づいた。openstackプロト...">
+
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="canonical" href="https://kosukeshimofuji.jp/2016/07/26/OpenMultiStack/">
+  <link rel="alternate" type="application/rss+xml" title="Kosuke Shimofuji's Home Page" href="https://kosukeshimofuji.jp/feed.xml">
+  <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-80482518-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+
+      <meta property="og:url" content="https://kosukeshimofuji.jp/2016/07/26/OpenMultiStack/" />
+  
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="OpenMultiStackというものを作りたい | Kosuke Shimofuji's Home Page" />
+  
+
+
+</head>
+
+
+  <body>
+
+    <header class="site-header">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/">Kosuke Shimofuji's Home Page</a>
+
+    <nav class="site-nav">
+      <a href="#" class="menu-icon">
+        <svg viewBox="0 0 18 15">
+          <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+      </a>
+
+      <div class="trigger">
+        
+          
+          <a class="page-link" href="/about/">About</a>
+          
+        
+          
+        
+          
+        
+          
+          <a class="page-link" href="/links/">Links</a>
+          
+        
+          
+        
+      </div>
+    </nav>
+
+  </div>
+
+</header>
+
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <p class="post-meta">Posted date: <time datetime="2016-07-26T14:00:00+09:00"
+        itemprop="datePublished">2016-07-26 14:00:00 +0900</time></p>
+    <h1 class="post-title" itemprop="name headline">OpenMultiStackというものを作りたい</h1>
+  </header>
+
+  
+    <h2>Table of contents</h2>
+  
+  
+  <div class="post-content" itemprop="articleBody">
+  <ul class="section-nav">
+<li class="toc-entry toc-h1"><a href="#機能">機能</a></li>
+<li class="toc-entry toc-h1"><a href="#開発環境の構築">開発環境の構築</a></li>
+<li class="toc-entry toc-h1"><a href="#djangoプロジェクトの作成と設定">djangoプロジェクトの作成と設定</a></li>
+<li class="toc-entry toc-h2"><a href="#timezoneの変更を行う">TIMEZONEの変更を行う</a></li>
+<li class="toc-entry toc-h1"><a href="#djangoテストサーバの起動">djangoテストサーバの起動</a></li>
+<li class="toc-entry toc-h2"><a href="#backendデータベースにpostgresqlを利用するようにdjangoを設定する">backendデータベースにPostgresqlを利用するようにdjangoを設定する</a></li>
+<li class="toc-entry toc-h1"><a href="#djangoアプリケーションの精査">djangoアプリケーションの精査</a></li>
+<li class="toc-entry toc-h2"><a href="#migrateの実行">migrateの実行</a></li>
+<li class="toc-entry toc-h1"><a href="#アプリケーションの作成">アプリケーションの作成</a></li>
+<li class="toc-entry toc-h2"><a href="#コントーラーとビューの定義">コントーラーとビューの定義</a></li>
+<li class="toc-entry toc-h2"><a href="#モデルの定義">モデルの定義</a></li>
+<li class="toc-entry toc-h2"><a href="#モデルの有効化">モデルの有効化</a></li>
+<li class="toc-entry toc-h2"><a href="#migration用のスクリプトの生成">migration用のスクリプトの生成</a></li>
+<li class="toc-entry toc-h2"><a href="#発行されるsqlの確認">発行されるSQLの確認</a></li>
+<li class="toc-entry toc-h2"><a href="#migrateの実行-1">migrateの実行</a></li>
+<li class="toc-entry toc-h2"><a href="#モデルの修正のフロー">モデルの修正のフロー</a></li>
+<li class="toc-entry toc-h2"><a href="#apiからレコードの挿入や取得を行う">APIからレコードの挿入や取得を行う</a></li>
+<li class="toc-entry toc-h2"><a href="#モデルにstrメソッドを追加する">モデルにstrメソッドを追加する</a></li>
+<li class="toc-entry toc-h2"><a href="#管理画面の追加と設定">管理画面の追加と設定</a></li>
+<li class="toc-entry toc-h2"><a href="#accountテーブルを管理画面から編集できるようにする">Accountテーブルを管理画面から編集できるようにする</a></li>
+<li class="toc-entry toc-h2"><a href="#レコード追加時のフィールド順を決定する">レコード追加時のフィールド順を決定する</a></li>
+<li class="toc-entry toc-h2"><a href="#accountテーブルの一覧をみやすくする">Accountテーブルの一覧をみやすくする</a></li>
+<li class="toc-entry toc-h2"><a href="#インスタンステーブル">インスタンステーブル</a></li>
+<li class="toc-entry toc-h1"><a href="#djangoのキューワーカー">djangoのキューワーカー</a></li>
+<li class="toc-entry toc-h2"><a href="#ブローカーの選択">ブローカーの選択</a></li>
+<li class="toc-entry toc-h2"><a href="#djnago-celeryのインストール">djnago-celeryのインストール</a></li>
+<li class="toc-entry toc-h2"><a href="#sqlalchemyのインストール">SQLalchemyのインストール</a></li>
+<li class="toc-entry toc-h2"><a href="#djceleryの設定">djceleryの設定</a></li>
+<li class="toc-entry toc-h2"><a href="#taskの作成">Taskの作成</a></li>
+<li class="toc-entry toc-h2"><a href="#workerの起動">Workerの起動</a></li>
+<li class="toc-entry toc-h2"><a href="#taskのテスト">Taskのテスト</a></li>
+<li class="toc-entry toc-h1"><a href="#restful-api">RESTful API</a></li>
+<li class="toc-entry toc-h2"><a href="#queueテーブルを定義">Queueテーブルを定義</a></li>
+<li class="toc-entry toc-h2"><a href="#django-rest-frameworkのインストール">django rest frameworkのインストール</a></li>
+<li class="toc-entry toc-h2"><a href="#django-rest-frameworkの有効化">django rest frameworkの有効化</a></li>
+<li class="toc-entry toc-h2"><a href="#シリアライザーを定義する">シリアライザーを定義する</a></li>
+<li class="toc-entry toc-h2"><a href="#viewsetを定義する">ViewSetを定義する</a></li>
+<li class="toc-entry toc-h2"><a href="#controllerにapiのuriを追加する">ControllerにapiのURIを追加する</a></li>
+<li class="toc-entry toc-h2"><a href="#apiをテストする">APIをテストする</a></li>
+<li class="toc-entry toc-h1"><a href="#signal">Signal</a></li>
+<li class="toc-entry toc-h1"><a href="#参考文献">参考文献</a></li>
+</ul><p>事情があってインスタンスを同時に100台程度稼働させたい。インスタンスの稼働時間は30-60分程度になる想定。じゃあOpenStackの出番だろうと思ってたら、著名なopenstack providerには最大20インスタンスしか同時に立ち上げられないような制限が入っていることに気づいた。openstackプロトコル自体は互換性があるんだから、openstack providerは複数にまたがって使えるよなあっていうことでOpenMultiStackというのを作ってみたいと思う。
+openstackの操作にはpython-openstackclientを使いたいので、API側も親和性が高いだろうということでdjangoを採用する。djangoを触ること自体が初めてなので、丁寧にドキュメントを残すことにする。</p>
+
+<h1 id="section">
+<a id="機能" class="anchor" href="#%E6%A9%9F%E8%83%BD" aria-hidden="true"><span class="octicon octicon-link"></span></a>機能</h1>
+
+<ul>
+  <li>OpenStack Providerのアカウントの集約</li>
+  <li>インスタンス情報を保持</li>
+  <li>WebインターフェイスからOpenStack Providerのアカウント登録できる</li>
+  <li>Webインターフェイスからインスタンス情報を俯瞰できる</li>
+  <li>いずれかのOpenStack Providerにメンテナンスや不具合があったとしても他のOpenStack Providerを使って可能な限り確実にインスタンスを立ち上げるように努力する</li>
+  <li>RESTful API</li>
+</ul>
+
+<h1 id="section-1">
+<a id="開発環境の構築" class="anchor" href="#%E9%96%8B%E7%99%BA%E7%92%B0%E5%A2%83%E3%81%AE%E6%A7%8B%E7%AF%89" aria-hidden="true"><span class="octicon octicon-link"></span></a>開発環境の構築</h1>
+
+<ul>
+  <li>Python 3.5.1環境を構築</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ pyenv install 3.5.1
+$ pyenv virtualenv 3.5.1 OpenMultiStack
+$ pyenv global OpenMultiStack
+</code></pre>
+</div>
+
+<ul>
+  <li>django関連のモジュールをインストール</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ pip install --upgrade pip
+$ pip install django
+$ pip install psycopg2 # djangoからpostgresqlを操作するために必要
+$ pip install djangorestframework
+$ pip install django-filter 
+</code></pre>
+</div>
+
+<ul>
+  <li>openstack client関連のモジュールをインストール</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ pip install python-openstackclient
+$ pip install python-neutronclient
+</code></pre>
+</div>
+
+<ul>
+  <li>direnvのインストール</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ wget https://github.com/direnv/direnv/releases/download/v2.9.0/direnv.linux-amd64 -O direnv
+$ chmod 700 direnv
+$ mv direnv local/bin/
+$ echo 'eval "$(direnv hook bash)"' &gt;&gt; ~/.bashrc
+</code></pre>
+</div>
+
+<h1 id="django">
+<a id="djangoプロジェクトの作成と設定" class="anchor" href="#django%E3%83%97%E3%83%AD%E3%82%B8%E3%82%A7%E3%82%AF%E3%83%88%E3%81%AE%E4%BD%9C%E6%88%90%E3%81%A8%E8%A8%AD%E5%AE%9A" aria-hidden="true"><span class="octicon octicon-link"></span></a>djangoプロジェクトの作成と設定</h1>
+
+<p>djangoには枠組みとしてプロジェクトとアプリケーションがあります。アプリケーションはBLOGやデータベースのレコード公開などの実際のwebアプリケーションを指します。プロジェクトはwebアプリケーションを構築するための設定やアプリケーションを集めたものです。プロジェクトには複数のアプリケーションを格納することができ、1つのアプリケーションは複数のプロジェクトから使用されることができます。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>(OpenMultiStack) kosuke@OpenMultiStack ~/OpenMultiStack $ git checkout -b
+OpenMultiStack
+(OpenMultiStack) kosuke@OpenMultiStack ~/OpenMultiStack $ django-admin startproject django_project
+(OpenMultiStack) kosuke@OpenMultiStack ~/OpenMultiStack $ tree django_project/
+django_project/
+├── django_project
+│   ├── __init__.py
+│   ├── settings.py
+│   ├── urls.py
+│   └── wsgi.py
+└── manage.py
+
+1 directory, 5 files
+</code></pre>
+</div>
+
+<h2 id="timezone">
+<a id="timezoneの変更を行う" class="anchor" href="#timezone%E3%81%AE%E5%A4%89%E6%9B%B4%E3%82%92%E8%A1%8C%E3%81%86" aria-hidden="true"><span class="octicon octicon-link"></span></a>TIMEZONEの変更を行う</h2>
+
+<p><a href="https://github.com/KosukeShimofuji/OpenMultiStack/commit/be65ad68abe7097d7c3f592f5124e0622bd38331">commit</a></p>
+
+<h1 id="django-1">
+<a id="djangoテストサーバの起動" class="anchor" href="#django%E3%83%86%E3%82%B9%E3%83%88%E3%82%B5%E3%83%BC%E3%83%90%E3%81%AE%E8%B5%B7%E5%8B%95" aria-hidden="true"><span class="octicon octicon-link"></span></a>djangoテストサーバの起動</h1>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>(OpenMultiStack) kosuke@OpenMultiStack ~/OpenMultiStack/django_project $ python manage.py runserver 0.0.0.0:8000
+</code></pre>
+</div>
+
+<p><img src="/images/2016/07/22/django_test_server.png" alt="django_test_server"></p>
+
+<h2 id="backendpostgresqldjango">
+<a id="backendデータベースにpostgresqlを利用するようにdjangoを設定する" class="anchor" href="#backend%E3%83%87%E3%83%BC%E3%82%BF%E3%83%99%E3%83%BC%E3%82%B9%E3%81%ABpostgresql%E3%82%92%E5%88%A9%E7%94%A8%E3%81%99%E3%82%8B%E3%82%88%E3%81%86%E3%81%ABdjango%E3%82%92%E8%A8%AD%E5%AE%9A%E3%81%99%E3%82%8B" aria-hidden="true"><span class="octicon octicon-link"></span></a>backendデータベースにPostgresqlを利用するようにdjangoを設定する</h2>
+
+<p><a href="https://github.com/KosukeShimofuji/OpenMultiStack/commit/d64b2783aad13bd8f690cce34f016597a94fb726">commit</a></p>
+
+<h1 id="django-2">
+<a id="djangoアプリケーションの精査" class="anchor" href="#django%E3%82%A2%E3%83%97%E3%83%AA%E3%82%B1%E3%83%BC%E3%82%B7%E3%83%A7%E3%83%B3%E3%81%AE%E7%B2%BE%E6%9F%BB" aria-hidden="true"><span class="octicon octicon-link"></span></a>djangoアプリケーションの精査</h1>
+
+<p>django_project/settings.pyの中には以下のようなdjangoアプリケーションに関わる記述がある。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code># Application definition
+
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+]
+</code></pre>
+</div>
+
+<p>djangoアプリケーションはdjangoの機能を拡張するものだが、一つのアプリケーションに対して一つのデータベースのテーブルを使うらしい。不要なアプリケーションは除外しておく。</p>
+
+<h2 id="migrate">
+<a id="migrateの実行" class="anchor" href="#migrate%E3%81%AE%E5%AE%9F%E8%A1%8C" aria-hidden="true"><span class="octicon octicon-link"></span></a>migrateの実行</h2>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>(OpenMultiStack) kosuke@OpenMultiStack ~/OpenMultiStack/django_project $ python manage.py migrate
+Operations to perform:
+  Apply all migrations: admin, auth, contenttypes, sessions
+Running migrations:
+  Rendering model states... DONE
+  Applying contenttypes.0001_initial... OK
+  Applying auth.0001_initial... OK
+  Applying admin.0001_initial... OK
+  Applying admin.0002_logentry_remove_auto_add... OK
+  Applying contenttypes.0002_remove_content_type_name... OK
+  Applying auth.0002_alter_permission_name_max_length... OK
+  Applying auth.0003_alter_user_email_max_length... OK
+  Applying auth.0004_alter_user_username_opts... OK
+  Applying auth.0005_alter_user_last_login_null... OK
+  Applying auth.0006_require_contenttypes_0002... OK
+  Applying auth.0007_alter_validators_add_error_messages... OK
+  Applying sessions.0001_initial... OK
+</code></pre>
+</div>
+
+<p>migrateより以下のテーブルが作成されたことが確認できます。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>django=&gt; \dt
+                    リレーションの一覧
+ スキーマ |            名前            |    型    | 所有者
+----------+----------------------------+----------+--------
+ public   | auth_group                 | テーブル | django
+ public   | auth_group_permissions     | テーブル | django
+ public   | auth_permission            | テーブル | django
+ public   | auth_user                  | テーブル | django
+ public   | auth_user_groups           | テーブル | django
+ public   | auth_user_user_permissions | テーブル | django
+ public   | django_admin_log           | テーブル | django
+ public   | django_content_type        | テーブル | django
+ public   | django_migrations          | テーブル | django
+ public   | django_session             | テーブル | django
+(10 行)
+</code></pre>
+</div>
+
+<h1 id="section-2">
+<a id="アプリケーションの作成" class="anchor" href="#%E3%82%A2%E3%83%97%E3%83%AA%E3%82%B1%E3%83%BC%E3%82%B7%E3%83%A7%E3%83%B3%E3%81%AE%E4%BD%9C%E6%88%90" aria-hidden="true"><span class="octicon octicon-link"></span></a>アプリケーションの作成</h1>
+
+<p>OpenMultiStackというdjangoアプリケーションを作成していきます。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>(OpenMultiStack) kosuke@OpenMultiStack ~/OpenMultiStack/django_project $ python manage.py startapp open_multi_stack
+(OpenMultiStack) kosuke@OpenMultiStack ~/OpenMultiStack/django_project $ tree open_multi_stack/
+open_multi_stack/
+├── __init__.py
+├── admin.py
+├── apps.py
+├── migrations
+│   └── __init__.py
+├── models.py
+├── tests.py
+└── views.py
+
+1 directory, 7 files
+</code></pre>
+</div>
+
+<h2 id="section-3">
+<a id="コントーラーとビューの定義" class="anchor" href="#%E3%82%B3%E3%83%B3%E3%83%88%E3%83%BC%E3%83%A9%E3%83%BC%E3%81%A8%E3%83%93%E3%83%A5%E3%83%BC%E3%81%AE%E5%AE%9A%E7%BE%A9" aria-hidden="true"><span class="octicon octicon-link"></span></a>コントーラーとビューの定義</h2>
+
+<p>urls.pyを修正してコントーラーを定義し、views.pyを追加してビューを定義します。</p>
+
+<p><a href="https://github.com/KosukeShimofuji/OpenMultiStack/commit/c9427133695019e6b19804aeebc264d1a74a183b">commit</a></p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ curl http://OpenMultiStack.test:8000
+Hello, world. You're at the first_app index.
+</code></pre>
+</div>
+
+<h2 id="section-4">
+<a id="モデルの定義" class="anchor" href="#%E3%83%A2%E3%83%87%E3%83%AB%E3%81%AE%E5%AE%9A%E7%BE%A9" aria-hidden="true"><span class="octicon octicon-link"></span></a>モデルの定義</h2>
+
+<p>OpenStackを利用する際にenvrcに以下のような情報を定義します。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>export OS_TENANT_NAME="STRINGS"
+export OS_USERNAME="STRINGS"
+export OS_PASSWORD="STRINGS"
+export OS_AUTH_URL="https://identity.hogehoge.com/v2.0"
+export OS_REGION_NAME="tokyo"
+</code></pre>
+</div>
+
+<p>これと同じ情報を格納できるモデルを定義します。ついでにこのアカウントを使うのか使わないのかを決定するフラグも追加しておきます。</p>
+
+<p><a href="https://github.com/KosukeShimofuji/OpenMultiStack/commit/e1370534871eb4c0216d1467ab4ff4ca1aaf4e36">commit</a></p>
+
+<h2 id="section-5">
+<a id="モデルの有効化" class="anchor" href="#%E3%83%A2%E3%83%87%E3%83%AB%E3%81%AE%E6%9C%89%E5%8A%B9%E5%8C%96" aria-hidden="true"><span class="octicon octicon-link"></span></a>モデルの有効化</h2>
+
+<p>モデルの有効化によりdjangoはモデルに沿ったcreate tableの実行と、テーブルへのアクセスを行うapiの作成を自動的に行うことができます。</p>
+
+<p><a href="https://github.com/KosukeShimofuji/OpenMultiStack/commit/be9d7c683e1caba303a14b45262c83b377011ebe">commit</a></p>
+
+<h2 id="migration">
+<a id="migration用のスクリプトの生成" class="anchor" href="#migration%E7%94%A8%E3%81%AE%E3%82%B9%E3%82%AF%E3%83%AA%E3%83%97%E3%83%88%E3%81%AE%E7%94%9F%E6%88%90" aria-hidden="true"><span class="octicon octicon-link"></span></a>migration用のスクリプトの生成</h2>
+
+<p>migration用のスクリプトを生成します。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>(OpenMultiStack) kosuke@OpenMultiStack ~/OpenMultiStack/django_project $ python manage.py makemigrations open_multi_stack
+Migrations for 'open_multi_stack':
+  0001_initial.py:
+    - Create model open_stack_account
+</code></pre>
+</div>
+
+<p>生成されたスクリプトを中身を見てみましょう。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>(OpenMultiStack) kosuke@OpenMultiStack ~/OpenMultiStack/django_project $ cat open_multi_stack/migrations/0001_initial.py
+# -*- coding: utf-8 -*-
+# Generated by Django 1.9.8 on 2016-07-22 06:43
+from __future__ import unicode_literals
+
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    initial = True
+
+    dependencies = [
+    ]
+
+    operations = [
+        migrations.CreateModel(
+            name='Account',
+            fields=[
+                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('username', models.CharField(max_length=128)),
+                ('tenantname', models.CharField(max_length=128)),
+                ('tenant_id', models.CharField(max_length=128)),
+                ('password', models.CharField(max_length=128)),
+                ('auth_url', models.CharField(max_length=128)),
+                ('version', models.CharField(max_length=128)),
+                ('status', models.CharField(choices=[('available', '使用可能'), ('unavailable', '使用不可')], default='available', max_length=12)),
+                ('provider', models.CharField(max_length=128)),
+            ],
+        ),
+    ]
+</code></pre>
+</div>
+
+<p>モデルで定義した通りのテーブルを生成するスクリプト担っていることがわかります。</p>
+
+<h2 id="sql">
+<a id="発行されるsqlの確認" class="anchor" href="#%E7%99%BA%E8%A1%8C%E3%81%95%E3%82%8C%E3%82%8Bsql%E3%81%AE%E7%A2%BA%E8%AA%8D" aria-hidden="true"><span class="octicon octicon-link"></span></a>発行されるSQLの確認</h2>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>(OpenMultiStack) kosuke@OpenMultiStack ~/OpenMultiStack/django_project $ python manage.py sqlmigrate open_multi_stack 0001
+BEGIN;
+--
+-- Create model Account
+--
+CREATE TABLE "open_multi_stack_account" ("id" serial NOT NULL PRIMARY KEY, "username" varchar(128) NOT NULL, "tenantname" varchar(128) NOT NULL, "tenant_id" varchar(128) NOT NULL, "password" varchar(128) NOT NULL, "auth_url" varchar(128) NOT NULL, "version" varchar(128) NOT NULL, "status" varchar(12) NOT NULL, "provider" varchar(128) NOT NULL);
+
+COMMIT;
+</code></pre>
+</div>
+
+<h2 id="migrate-1">
+<a id="migrateの実行-1" class="anchor" href="#migrate%E3%81%AE%E5%AE%9F%E8%A1%8C-1" aria-hidden="true"><span class="octicon octicon-link"></span></a>migrateの実行</h2>
+
+<p>migrateの実行</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$  python manage.py migrate
+Operations to perform:
+  Apply all migrations: contenttypes, auth, admin, open_multi_stack, sessions
+Running migrations:
+  Rendering model states... DONE
+  Applying open_multi_stack.0001_initial... OK
+</code></pre>
+</div>
+
+<p>migrateにより作成されたテーブルを確認する</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>django=&gt; \d open_multi_stack_account
+                                 テーブル "public.open_multi_stack_account"
+     列     |           型           |                                修飾語
+------------+------------------------+-----------------------------------------------------------------------
+ id         | integer                | not null default nextval('open_multi_stack_account_id_seq'::regclass)
+ username   | character varying(128) | not null
+ tenantname | character varying(128) | not null
+ tenant_id  | character varying(128) | not null
+ password   | character varying(128) | not null
+ auth_url   | character varying(128) | not null
+ version    | character varying(128) | not null
+ status     | character varying(12)  | not null
+ provider   | character varying(128) | not null
+インデックス:
+    "open_multi_stack_account_pkey" PRIMARY KEY, btree (id)
+</code></pre>
+</div>
+
+<h2 id="section-6">
+<a id="モデルの修正のフロー" class="anchor" href="#%E3%83%A2%E3%83%87%E3%83%AB%E3%81%AE%E4%BF%AE%E6%AD%A3%E3%81%AE%E3%83%95%E3%83%AD%E3%83%BC" aria-hidden="true"><span class="octicon octicon-link"></span></a>モデルの修正のフロー</h2>
+
+<ul>
+  <li>models.pyを修正する</li>
+  <li>makemigrationsを実行してテーブル生成用スクリプトを作成する</li>
+  <li>sqlmigrateで実行されるSQL文を確認する</li>
+  <li>migrateで適用する</li>
+</ul>
+
+<h2 id="api">
+<a id="apiからレコードの挿入や取得を行う" class="anchor" href="#api%E3%81%8B%E3%82%89%E3%83%AC%E3%82%B3%E3%83%BC%E3%83%89%E3%81%AE%E6%8C%BF%E5%85%A5%E3%82%84%E5%8F%96%E5%BE%97%E3%82%92%E8%A1%8C%E3%81%86" aria-hidden="true"><span class="octicon octicon-link"></span></a>APIからレコードの挿入や取得を行う</h2>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>(OpenMultiStack) kosuke@OpenMultiStack ~/OpenMultiStack/django_project $ python manage.py shell
+Python 3.5.1 (default, Jul 22 2016, 10:16:05)
+[GCC 4.9.2] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+(InteractiveConsole)
+# Accountクラスをインポート
+&gt;&gt;&gt; from open_multi_stack.models import Account
+&gt;&gt;&gt; dir(Account)
+['DoesNotExist', 'MultipleObjectsReturned', 'STATUS_AVAILABLE', 'STATUS_SET', 'STATUS_UNAVAILABLE', '__class__', '__delattr__', '__dict__', '__dir__', '__doc__', '__eq__', '__format__', '__ge__', '__getattribute__', '__gt__', '__hash__', '__init__', '__le__', '__lt__', '__module__', '__ne__', '__new__', '__reduce__', '__reduce_ex__', '__repr__', '__setattr__', '__setstate__', '__sizeof__', '__str__', '__subclasshook__', '__weakref__', '_base_manager', '_check_column_name_clashes', '_check_field_name_clashes', '_check_fields', '_check_id_field', '_check_index_together', '_check_local_fields', '_check_long_column_names', '_check_m2m_through_same_relationship', '_check_managers', '_check_model', '_check_ordering', '_check_swappable', '_check_unique_together', '_default_manager', '_deferred', '_do_insert', '_do_update', '_get_FIELD_display', '_get_next_or_previous_by_FIELD', '_get_next_or_previous_in_order', '_get_pk_val', '_get_unique_checks', '_meta', '_perform_date_checks', '_perform_unique_checks', '_save_parents', '_save_table', '_set_pk_val', 'check', 'clean', 'clean_fields', 'date_error_message', 'delete', 'from_db', 'full_clean', 'get_deferred_fields', 'get_status_display', 'objects', 'pk', 'prepare_database_save', 'refresh_from_db', 'save', 'save_base', 'serializable_value', 'unique_error_message', 'validate_unique']
+# Accountテーブルのすべてのレコードを取得する
+&gt;&gt;&gt; Account.objects.all()
+[]
+# レコードの挿入
+&gt;&gt;&gt; q = Account(username="kosuke", tenantname="development tenant", tenant_id="1", password="secret", auth_url="http://kosukeshimofuji.jp", version="2", status="available", provider="unknown")
+&gt;&gt;&gt; q.save
+# 挿入したレコードの閲覧
+&gt;&gt;&gt; Account.objects.all()
+[&lt;Account: Account object&gt;]
+</code></pre>
+</div>
+
+<h2 id="str">
+<a id="モデルにstrメソッドを追加する" class="anchor" href="#%E3%83%A2%E3%83%87%E3%83%AB%E3%81%ABstr%E3%83%A1%E3%82%BD%E3%83%83%E3%83%89%E3%82%92%E8%BF%BD%E5%8A%A0%E3%81%99%E3%82%8B" aria-hidden="true"><span class="octicon octicon-link"></span></a>モデルにstrメソッドを追加する</h2>
+
+<p>上記の例ですべてのレコードを取得するとshellにオブジェクト名が表記されました。この表記では一体どのレコードが取れているのかわかりません。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>&gt;&gt;&gt; Account.objects.all()
+[&lt;Account: Account object&gt;]
+</code></pre>
+</div>
+
+<p>モデルに__str__メソッド加えることで、表記を自由に変更することができます。</p>
+
+<p><a href="https://github.com/KosukeShimofuji/OpenMultiStack/commit/1b206a0333fcc9e9a4c9a38c7e8dfb3b79133b07">commit</a></p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>(OpenMultiStack) kosuke@OpenMultiStack ~/OpenMultiStack/django_project $ python manage.py shell
+Python 3.5.1 (default, Jul 22 2016, 10:16:05)
+[GCC 4.9.2] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+(InteractiveConsole)
+&gt;&gt;&gt; from open_multi_stack.models import Account
+&gt;&gt;&gt; Account.objects.all()
+[&lt;Account: development tenant_unknown&gt;]
+</code></pre>
+</div>
+
+<p>tenant名でproviderの値が出力されるようになったので、どのレコードを参照しているのかわかりやすくなりました。</p>
+
+<h2 id="section-7">
+<a id="管理画面の追加と設定" class="anchor" href="#%E7%AE%A1%E7%90%86%E7%94%BB%E9%9D%A2%E3%81%AE%E8%BF%BD%E5%8A%A0%E3%81%A8%E8%A8%AD%E5%AE%9A" aria-hidden="true"><span class="octicon octicon-link"></span></a>管理画面の追加と設定</h2>
+
+<ul>
+  <li>管理アカウントの作成</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>(OpenMultiStack) kosuke@OpenMultiStack ~/OpenMultiStack/django_project $ python manage.py createsuperuser
+Username (leave blank to use 'kosuke'):
+Email address: kosuke.shimofuji@gmail.com
+Password:
+Password (again):
+Superuser created successfully.
+</code></pre>
+</div>
+
+<ul>
+  <li>controllerを編集する</li>
+</ul>
+
+<p><a href="https://github.com/KosukeShimofuji/OpenMultiStack/commit/656e9fecc78321392dce65f3ed4acc3e5e0fbcef">commit</a></p>
+
+<ul>
+  <li>管理画面にアクセスする</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>http://OpenMultiStack.test:8000/admin/
+</code></pre>
+</div>
+
+<p>ログインするとGroupやUserテーブルなどのindex画面が並びます。</p>
+
+<p><img src="/images/2016/07/22/django_admin_index.png" alt="django_admin_index"></p>
+
+<p>ユーザー一覧ページは以下のようになっています。</p>
+
+<p><img src="/images/2016/07/22/django_user_index.png" alt="django_user_index"></p>
+
+<p>同じようにOpenStackのアカウントのデータを俯瞰し、データの編集も管理画面からできるようになれば、ウェブインターフェイスからAccount管理する機能については作成できそうです。</p>
+
+<h2 id="account">
+<a id="accountテーブルを管理画面から編集できるようにする" class="anchor" href="#account%E3%83%86%E3%83%BC%E3%83%96%E3%83%AB%E3%82%92%E7%AE%A1%E7%90%86%E7%94%BB%E9%9D%A2%E3%81%8B%E3%82%89%E7%B7%A8%E9%9B%86%E3%81%A7%E3%81%8D%E3%82%8B%E3%82%88%E3%81%86%E3%81%AB%E3%81%99%E3%82%8B" aria-hidden="true"><span class="octicon octicon-link"></span></a>Accountテーブルを管理画面から編集できるようにする</h2>
+
+<p>django_project/open_stack_multi/admin.pyを追加することによってadminアプリケーションにテーブルの存在を知らせることができます。</p>
+
+<p><a href="https://github.com/KosukeShimofuji/OpenMultiStack/commit/2a515777c767b84a41556d562428eba3924c5e5a">commit</a></p>
+
+<p>管理画面をリロードすると、テーブルを編集できるようになっています。</p>
+
+<p><img src="/images/2016/07/22/update_admin_index.png" alt="update_admin_index"></p>
+
+<p>実際にレコードを追加してみます。</p>
+
+<p><img src="/images/2016/07/22/add_account_on_admin.png" alt="add_account_on_admin"></p>
+
+<p>追加したレコードをpostgresqlから確認してみます。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>django=&gt; select * from open_multi_stack_account;
+ id | username |     tenantname     | tenant_id | password |         auth_url          | version |  status   | provider
+----+----------+--------------------+-----------+----------+---------------------------+---------+-----------+----------
+  1 | kosuke   | development tenant | 1         | secret   | http://kosukeshimofuji.jp | 2       | available | unknown
+  2 | hoge     | hoge               | hoge      | hoge     | hoge                      | hoge    | available | hoge
+(2 行)
+</code></pre>
+</div>
+
+<p>管理画面からレコードが追加できるようになったことが確認できました。しかしまだまだ不満があります。</p>
+
+<h2 id="section-8">
+<a id="レコード追加時のフィールド順を決定する" class="anchor" href="#%E3%83%AC%E3%82%B3%E3%83%BC%E3%83%89%E8%BF%BD%E5%8A%A0%E6%99%82%E3%81%AE%E3%83%95%E3%82%A3%E3%83%BC%E3%83%AB%E3%83%89%E9%A0%86%E3%82%92%E6%B1%BA%E5%AE%9A%E3%81%99%E3%82%8B" aria-hidden="true"><span class="octicon octicon-link"></span></a>レコード追加時のフィールド順を決定する</h2>
+
+<p>初期状態では、フィールドの順序が定まっておらず、あまり美しくありません。そこで順序を指定します。</p>
+
+<p><a href="https://github.com/KosukeShimofuji/OpenMultiStack/commit/400348a4a1f73d3ade79ca60f75bef2685123211">commit</a></p>
+
+<h2 id="account-1">
+<a id="accountテーブルの一覧をみやすくする" class="anchor" href="#account%E3%83%86%E3%83%BC%E3%83%96%E3%83%AB%E3%81%AE%E4%B8%80%E8%A6%A7%E3%82%92%E3%81%BF%E3%82%84%E3%81%99%E3%81%8F%E3%81%99%E3%82%8B" aria-hidden="true"><span class="octicon octicon-link"></span></a>Accountテーブルの一覧をみやすくする</h2>
+
+<p>初期状態はでは以下のようになっており美しくありません。</p>
+
+<p><img src="/images/2016/07/22/before_account_index.png" alt="before_account_index"></p>
+
+<p>そこで、きちんとフィールドを作ってみやすくするためにlistdisplayを使用します。</p>
+
+<p><a href="https://github.com/KosukeShimofuji/OpenMultiStack/commit/241ee42e36b5758c5e91bbc999d0cb8e3d15de6a">commit</a></p>
+
+<p><img src="/images/2016/07/22/after_account_index.png" alt="after_account_index"></p>
+
+<h2 id="section-9">
+<a id="インスタンステーブル" class="anchor" href="#%E3%82%A4%E3%83%B3%E3%82%B9%E3%82%BF%E3%83%B3%E3%82%B9%E3%83%86%E3%83%BC%E3%83%96%E3%83%AB" aria-hidden="true"><span class="octicon octicon-link"></span></a>インスタンステーブル</h2>
+
+<p>インスタンステーブルはOpenStack上に構築されたインスタンスを管理するためのテーブルであり, インスタンス名, IPアドレス, 秘密鍵, Accountテーブルとの紐付け情報をカラムとして持つ。現在のインスタンステーブルの構成はたたき台であり、OpenStackとの連携の上でカラムは随時増やしていく。(そういうことが容易にできるのはdjangoの利点である)</p>
+
+<ul>
+  <li>instance tableの作成</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>class Instance(models.Model):
+   name    = models.CharField(max_length=128)
+    ip      = models.CharField(max_length=128)
+    key     = models.CharField(max_length=128)
+    account = models.ForeignKey(Account)
+
+    def __str__(self):
+        return self.name + '_' + self.ip + '_' + self.account
+</code></pre>
+</div>
+
+<ul>
+  <li>migrateの実行</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>(OpenMultiStack) kosuke@OpenMultiStack ~/OpenMultiStack/django_project $  python manage.py makemigrations open_multi_stack
+Migrations for 'open_multi_stack':
+  0002_auto_20160725_1044.py:
+    - Create model Instance
+    - Alter field status on account
+    - Add field account to instance
+(OpenMultiStack) kosuke@OpenMultiStack ~/OpenMultiStack/django_project $ python manage.py sqlmigrate open_multi_stack 0002
+BEGIN;
+--
+-- Create model Instance
+--
+CREATE TABLE "open_multi_stack_instance" ("id" serial NOT NULL PRIMARY KEY, "name" varchar(128) NOT NULL, "ip" varchar(128) NOT NULL, "key" varchar(128) NOT NULL);
+--
+-- Alter field status on account
+--
+--
+-- Add field account to instance
+--
+ALTER TABLE "open_multi_stack_instance" ADD COLUMN "account_id" integer NOT NULL;
+ALTER TABLE "open_multi_stack_instance" ALTER COLUMN "account_id" DROP DEFAULT;
+CREATE INDEX "open_multi_stack_instance_8a089c2a" ON "open_multi_stack_instance" ("account_id");
+ALTER TABLE "open_multi_stack_instance" ADD CONSTRAINT "open_multi_s_account_id_1c0a0d19_fk_open_multi_stack_account_id" FOREIGN KEY ("account_id") REFERENCES "open_multi_stack_account" ("id") DEFERRABLE INITIALLY DEFERRED;
+
+COMMIT;
+</code></pre>
+</div>
+
+<p>作成されたinstanceテーブルの確認</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>django=&gt; \d open_multi_stack_instance;
+                                 テーブル "public.open_multi_stack_instance"
+     列     |           型           |                                 修飾語
+------------+------------------------+------------------------------------------------------------------------
+ id         | integer                | not null default nextval('open_multi_stack_instance_id_seq'::regclass)
+ name       | character varying(128) | not null
+ ip         | character varying(128) | not null
+ key        | character varying(128) | not null
+ account_id | integer                | not null
+インデックス:
+    "open_multi_stack_instance_pkey" PRIMARY KEY, btree (id)
+    "open_multi_stack_instance_8a089c2a" btree (account_id)
+外部キー制約:
+    "open_multi_s_account_id_1c0a0d19_fk_open_multi_stack_account_id" FOREIGN KEY (account_id) REFERENCES open_multi_stack_account(id) DEFERRABLE INITIALLY DEFERRED
+</code></pre>
+</div>
+
+<p>インスタンステーブルも管理画面から閲覧・編集できれば便利です。</p>
+
+<p><a href="https://github.com/KosukeShimofuji/OpenMultiStack/commit/653d8f282503b01c21284b1de59a392912ab0223">commit</a></p>
+
+<p>リレーションを設定するとdjangoは自動的にaccountテーブルのレコードと紐付けなければならないことを検知し、account_idの入力をリストとして設定します。</p>
+
+<p><img src="/images/2016/07/22/instance_table_on_admin.png" alt="instance_table_on_admin"></p>
+
+<h1 id="django-3">
+<a id="djangoのキューワーカー" class="anchor" href="#django%E3%81%AE%E3%82%AD%E3%83%A5%E3%83%BC%E3%83%AF%E3%83%BC%E3%82%AB%E3%83%BC" aria-hidden="true"><span class="octicon octicon-link"></span></a>djangoのキューワーカー</h1>
+
+<p>OpenStackとの連携部分はHTTP通信とは切り離して非同期で行いたいので、キューワーカを使用したいと思います。
+djangoのキューワーカーは<a href="http://docs.celeryproject.org/">celery</a>がデファクトスタンダードのようです。
+まずは<a href="http://docs.celeryproject.org/en/latest/getting-started/first-steps-with-celery.html">チュートリアル</a>に沿ってceleryを理解するところから始めます。</p>
+
+<h2 id="section-10">
+<a id="ブローカーの選択" class="anchor" href="#%E3%83%96%E3%83%AD%E3%83%BC%E3%82%AB%E3%83%BC%E3%81%AE%E9%81%B8%E6%8A%9E" aria-hidden="true"><span class="octicon octicon-link"></span></a>ブローカーの選択</h2>
+
+<p>celeryはメッセージを送受信するためのメッセージブローカを必要とします。代表的な選択肢はRabbitMQ、Redis、Djangoがすでに利用しているデータベースなどがあります。ここでは最小限の構成にするためにすでに利用しているPostgresqlをブローカとして利用します。(大規模なキューワーカーのタスクを任せる場合はPostgresなどを利用するのは推奨されませんが、小さな仕組みであれば動作するようです。)</p>
+
+<h2 id="djnago-celery">
+<a id="djnago-celeryのインストール" class="anchor" href="#djnago-celery%E3%81%AE%E3%82%A4%E3%83%B3%E3%82%B9%E3%83%88%E3%83%BC%E3%83%AB" aria-hidden="true"><span class="octicon octicon-link"></span></a>djnago-celeryのインストール</h2>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ pip install django-celery
+Collecting django-celery
+  Downloading django-celery-3.1.17.tar.gz (79kB)
+    100% |████████████████████████████████| 81kB 1.9MB/s
+Requirement already satisfied (use --upgrade to upgrade): celery&gt;=3.1.15 in /home/kosuke/.pyenv/versions/3.5.1/envs/OpenMultiStack/lib/python3.5/site-packages (from django-celery)
+Requirement already satisfied (use --upgrade to upgrade): pytz&gt;dev in /home/kosuke/.pyenv/versions/3.5.1/envs/OpenMultiStack/lib/python3.5/site-packages (from celery&gt;=3.1.15-&gt;django-celery)
+Requirement already satisfied (use --upgrade to upgrade): kombu&lt;3.1,&gt;=3.0.34 in /home/kosuke/.pyenv/versions/3.5.1/envs/OpenMultiStack/lib/python3.5/site-packages (from celery&gt;=3.1.15-&gt;django-celery)
+Requirement already satisfied (use --upgrade to upgrade): billiard&lt;3.4,&gt;=3.3.0.23 in /home/kosuke/.pyenv/versions/3.5.1/envs/OpenMultiStack/lib/python3.5/site-packages (from celery&gt;=3.1.15-&gt;django-celery)
+Requirement already satisfied (use --upgrade to upgrade): amqp&lt;2.0,&gt;=1.4.9 in /home/kosuke/.pyenv/versions/3.5.1/envs/OpenMultiStack/lib/python3.5/site-packages (from kombu&lt;3.1,&gt;=3.0.34-&gt;celery&gt;=3.1.15-&gt;django-celery)
+Requirement already satisfied (use --upgrade to upgrade): anyjson&gt;=0.3.3 in /home/kosuke/.pyenv/versions/3.5.1/envs/OpenMultiStack/lib/python3.5/site-packages (from kombu&lt;3.1,&gt;=3.0.34-&gt;celery&gt;=3.1.15-&gt;django-celery)
+Installing collected packages: django-celery
+  Running setup.py install for django-celery ... done
+Successfully installed django-celery-3.1.17
+</code></pre>
+</div>
+
+<h2 id="sqlalchemy">
+<a id="sqlalchemyのインストール" class="anchor" href="#sqlalchemy%E3%81%AE%E3%82%A4%E3%83%B3%E3%82%B9%E3%83%88%E3%83%BC%E3%83%AB" aria-hidden="true"><span class="octicon octicon-link"></span></a>SQLalchemyのインストール</h2>
+
+<p>backendにpostgresqlを利用するにはSQLalchemyをcelelyが利用するのでインストールする。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>pip install sqlalchemy
+</code></pre>
+</div>
+
+<h2 id="djcelery">
+<a id="djceleryの設定" class="anchor" href="#djcelery%E3%81%AE%E8%A8%AD%E5%AE%9A" aria-hidden="true"><span class="octicon octicon-link"></span></a>djceleryの設定</h2>
+
+<p>djangoで使用しているデータベースを利用すると決定したので<a href="http://docs.celeryproject.org/en/latest/getting-started/brokers/django.html#broker-django">ここ</a>を参考に設定を行います。</p>
+
+<p><a href="https://github.com/KosukeShimofuji/OpenMultiStack/commit/a9dccfb5acc9de5359523e6fd3d1105b4e163bba">commit</a>
+<a href="https://github.com/KosukeShimofuji/OpenMultiStack/commit/cd76de70707beb915e5f4b48e56f175033ffcb0c">commit</a></p>
+
+<ul>
+  <li>celery用のテーブルを作成</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>(OpenMultiStack) kosuke@OpenMultiStack ~/OpenMultiStack/django_project $ python manage.py makemigrations djcelery
+Migrations for 'djcelery':
+  0002_auto_20160725_1435.py:
+    - Alter field status on taskmeta
+    - Alter field state on taskstate
+
+(OpenMultiStack) kosuke@OpenMultiStack ~/OpenMultiStack/django_project $ python manage.py sqlmigrate djcelery 0001
+BEGIN;
+--
+-- Create model CrontabSchedule
+--
+CREATE TABLE "djcelery_crontabschedule" ("id" serial NOT NULL PRIMARY KEY, "minute" varchar(64) NOT NULL, "hour" varchar(64) NOT NULL, "day_of_week" varchar(64) NOT NULL, "day_of_month" varchar(64) NOT NULL, "month_of_year" varchar(64) NOT NULL);
+--
+-- Create model IntervalSchedule
+--
+CREATE TABLE "djcelery_intervalschedule" ("id" serial NOT NULL PRIMARY KEY, "every" integer NOT NULL, "period" varchar(24) NOT NULL);
+--
+-- Create model PeriodicTask
+--
+CREATE TABLE "djcelery_periodictask" ("id" serial NOT NULL PRIMARY KEY, "name" varchar(200) NOT NULL UNIQUE, "task" varchar(200) NOT NULL, "args" text NOT NULL, "kwargs" text NOT NULL, "queue" varchar(200) NULL, "exchange" varchar(200) NULL, "routing_key" varchar(200) NULL, "expires" timestamp with time zone NULL, "enabled" boolean NOT NULL, "last_run_at" timestamp with time zone NULL, "total_run_count" integer NOT NULL CHECK ("total_run_count" &gt;= 0), "date_changed" timestamp with time zone NOT NULL, "description" text NOT NULL, "crontab_id" integer NULL, "interval_id" integer NULL);
+--
+-- Create model PeriodicTasks
+--
+CREATE TABLE "djcelery_periodictasks" ("ident" smallint NOT NULL PRIMARY KEY, "last_update" timestamp with time zone NOT NULL);
+--
+-- Create model TaskMeta
+--
+CREATE TABLE "celery_taskmeta" ("id" serial NOT NULL PRIMARY KEY, "task_id" varchar(255) NOT NULL UNIQUE, "status" varchar(50) NOT NULL, "result" text NULL, "date_done" timestamp with time zone NOT NULL, "traceback" text NULL, "hidden" boolean NOT NULL, "meta" text NULL);
+--
+-- Create model TaskSetMeta
+--
+CREATE TABLE "celery_tasksetmeta" ("id" serial NOT NULL PRIMARY KEY, "taskset_id" varchar(255) NOT NULL UNIQUE, "result" text NOT NULL, "date_done" timestamp with time zone NOT NULL, "hidden" boolean NOT NULL);
+--
+-- Create model TaskState
+--
+CREATE TABLE "djcelery_taskstate" ("id" serial NOT NULL PRIMARY KEY, "state" varchar(64) NOT NULL, "task_id" varchar(36) NOT NULL UNIQUE, "name" varchar(200) NULL, "tstamp" timestamp with time zone NOT NULL, "args" text NULL, "kwargs" text NULL, "eta" timestamp with time zone NULL, "expires" timestamp with time zone NULL, "result" text NULL, "traceback" text NULL, "runtime" double precision NULL, "retries" integer NOT NULL, "hidden" boolean NOT NULL);
+--
+-- Create model WorkerState
+--
+CREATE TABLE "djcelery_workerstate" ("id" serial NOT NULL PRIMARY KEY, "hostname" varchar(255) NOT NULL UNIQUE, "last_heartbeat" timestamp with time zone NULL);
+--
+-- Add field worker to taskstate
+--
+ALTER TABLE "djcelery_taskstate" ADD COLUMN "worker_id" integer NULL;
+ALTER TABLE "djcelery_taskstate" ALTER COLUMN "worker_id" DROP DEFAULT;
+ALTER TABLE "djcelery_periodictask" ADD CONSTRAINT "djcelery_per_crontab_id_75609bab_fk_djcelery_crontabschedule_id" FOREIGN KEY ("crontab_id") REFERENCES "djcelery_crontabschedule" ("id") DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE "djcelery_periodictask" ADD CONSTRAINT "djcelery_p_interval_id_b426ab02_fk_djcelery_intervalschedule_id" FOREIGN KEY ("interval_id") REFERENCES "djcelery_intervalschedule" ("id") DEFERRABLE INITIALLY DEFERRED;
+CREATE INDEX "djcelery_periodictask_f3f0d72a" ON "djcelery_periodictask" ("crontab_id");
+CREATE INDEX "djcelery_periodictask_1dcd7040" ON "djcelery_periodictask" ("interval_id");
+CREATE INDEX "djcelery_periodictask_name_cb62cda9_like" ON "djcelery_periodictask" ("name" varchar_pattern_ops);
+CREATE INDEX "celery_taskmeta_662f707d" ON "celery_taskmeta" ("hidden");
+CREATE INDEX "celery_taskmeta_task_id_9558b198_like" ON "celery_taskmeta" ("task_id" varchar_pattern_ops);
+CREATE INDEX "celery_tasksetmeta_662f707d" ON "celery_tasksetmeta" ("hidden");
+CREATE INDEX "celery_tasksetmeta_taskset_id_a5a1d4ae_like" ON "celery_tasksetmeta" ("taskset_id" varchar_pattern_ops);
+CREATE INDEX "djcelery_taskstate_9ed39e2e" ON "djcelery_taskstate" ("state");
+CREATE INDEX "djcelery_taskstate_b068931c" ON "djcelery_taskstate" ("name");
+CREATE INDEX "djcelery_taskstate_863bb2ee" ON "djcelery_taskstate" ("tstamp");
+CREATE INDEX "djcelery_taskstate_662f707d" ON "djcelery_taskstate" ("hidden");
+CREATE INDEX "djcelery_taskstate_state_53543be4_like" ON "djcelery_taskstate" ("state" varchar_pattern_ops);
+CREATE INDEX "djcelery_taskstate_task_id_9d2efdb5_like" ON "djcelery_taskstate" ("task_id" varchar_pattern_ops);
+CREATE INDEX "djcelery_taskstate_name_8af9eded_like" ON "djcelery_taskstate" ("name" varchar_pattern_ops);
+CREATE INDEX "djcelery_workerstate_f129901a" ON "djcelery_workerstate" ("last_heartbeat");
+CREATE INDEX "djcelery_workerstate_hostname_b31c7fab_like" ON "djcelery_workerstate" ("hostname" varchar_pattern_ops);
+CREATE INDEX "djcelery_taskstate_ce77e6ef" ON "djcelery_taskstate" ("worker_id");
+ALTER TABLE "djcelery_taskstate" ADD CONSTRAINT "djcelery_taskstat_worker_id_f7f57a05_fk_djcelery_workerstate_id" FOREIGN KEY ("worker_id") REFERENCES "djcelery_workerstate" ("id") DEFERRABLE INITIALLY DEFERRED;
+
+COMMIT;
+(OpenMultiStack) kosuke@OpenMultiStack ~/OpenMultiStack/django_project $ python manage.py migrate djcelery
+Operations to perform:
+  Apply all migrations: djcelery
+Running migrations:
+  Rendering model states... DONE
+  Applying djcelery.0001_initial... OK
+  Applying djcelery.0002_auto_20160725_1435... OK
+</code></pre>
+</div>
+
+<h2 id="task">
+<a id="taskの作成" class="anchor" href="#task%E3%81%AE%E4%BD%9C%E6%88%90" aria-hidden="true"><span class="octicon octicon-link"></span></a>Taskの作成</h2>
+
+<p>10秒待って足し算の結果を返すタスクを作成します。</p>
+
+<p><a href="https://github.com/KosukeShimofuji/OpenMultiStack/commit/1474bdde296fe5a7594cc47fd539cb7d2eeac3fb">commit</a></p>
+
+<h2 id="worker">
+<a id="workerの起動" class="anchor" href="#worker%E3%81%AE%E8%B5%B7%E5%8B%95" aria-hidden="true"><span class="octicon octicon-link"></span></a>Workerの起動</h2>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>(OpenMultiStack) kosuke@OpenMultiStack ~/OpenMultiStack/django_project $ celery -A django_project worker -l info -c 1
+/home/kosuke/.pyenv/versions/3.5.1/envs/OpenMultiStack/lib/python3.5/site-packages/celery/apps/worker.py:161: CDeprecationWarning:
+Starting from version 3.2 Celery will refuse to accept pickle by default.
+
+The pickle serializer is a security concern as it may give attackers
+the ability to execute any command.  It's important to secure
+your broker from unauthorized access when using pickle, so we think
+that enabling pickle should require a deliberate action and not be
+the default choice.
+
+If you depend on pickle then you should set a setting to disable this
+warning and to be sure that everything will continue working
+when you upgrade to Celery 3.2::
+
+    CELERY_ACCEPT_CONTENT = ['pickle', 'json', 'msgpack', 'yaml']
+
+You must only enable the serializers that you will actually use.
+
+
+  warnings.warn(CDeprecationWarning(W_PICKLE_DEPRECATED))
+
+[2016-07-25 14:40:30,515: WARNING/MainProcess] /home/kosuke/.pyenv/versions/3.5.1/envs/OpenMultiStack/lib/python3.5/site-packages/celery/apps/worker.py:161: CDeprecationWarning:
+Starting from version 3.2 Celery will refuse to accept pickle by default.
+
+The pickle serializer is a security concern as it may give attackers
+the ability to execute any command.  It's important to secure
+your broker from unauthorized access when using pickle, so we think
+that enabling pickle should require a deliberate action and not be
+the default choice.
+
+If you depend on pickle then you should set a setting to disable this
+warning and to be sure that everything will continue working
+when you upgrade to Celery 3.2::
+
+    CELERY_ACCEPT_CONTENT = ['pickle', 'json', 'msgpack', 'yaml']
+
+You must only enable the serializers that you will actually use.
+
+
+  warnings.warn(CDeprecationWarning(W_PICKLE_DEPRECATED))
+
+
+ -------------- celery@OpenMultiStack.test v3.1.23 (Cipater)
+---- **** -----
+--- * ***  * -- Linux-3.16.0-4-amd64-x86_64-with-debian-8.5
+-- * - **** ---
+- ** ---------- [config]
+- ** ---------- .&gt; app:         django_project:0x7f3024c904e0
+- ** ---------- .&gt; transport:   django://localhost//
+- ** ---------- .&gt; results:     disabled://
+- *** --- * --- .&gt; concurrency: 1 (prefork)
+-- ******* ----
+--- ***** ----- [queues]
+ -------------- .&gt; celery           exchange=celery(direct) key=celery
+
+
+[tasks]
+  . django_project.celery.debug_task
+  . open_multi_stack.tasks.add
+
+[2016-07-25 14:40:30,544: INFO/MainProcess] Connected to django://localhost//
+/home/kosuke/.pyenv/versions/3.5.1/envs/OpenMultiStack/lib/python3.5/site-packages/celery/fixups/django.py:265: UserWarning: Using settings.DEBUG leads to a memory leak, never use this setting in production environments!
+  warnings.warn('Using settings.DEBUG leads to a memory leak, never '
+
+[2016-07-25 14:40:30,571: WARNING/MainProcess] /home/kosuke/.pyenv/versions/3.5.1/envs/OpenMultiStack/lib/python3.5/site-packages/celery/fixups/django.py:265: UserWarning: Using settings.DEBUG leads to a memory leak, never use this setting in production environments!
+  warnings.warn('Using settings.DEBUG leads to a memory leak, never '
+
+[2016-07-25 14:40:30,573: WARNING/MainProcess] celery@OpenMultiStack.test ready.
+</code></pre>
+</div>
+
+<h2 id="task-1">
+<a id="taskのテスト" class="anchor" href="#task%E3%81%AE%E3%83%86%E3%82%B9%E3%83%88" aria-hidden="true"><span class="octicon octicon-link"></span></a>Taskのテスト</h2>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>(OpenMultiStack) kosuke@OpenMultiStack ~/OpenMultiStack/django_project $ python manage.py shell
+Python 3.5.1 (default, Jul 22 2016, 10:16:05)
+[GCC 4.9.2] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+(InteractiveConsole)
+&gt;&gt;&gt; from open_multi_stack.tasks import add
+&gt;&gt;&gt; result = add.delay(1, 2)
+&gt;&gt;&gt; result = add.delay(1, 2)
+&gt;&gt;&gt; result.ready()
+False
+&gt;&gt;&gt; result.ready()
+False
+&gt;&gt;&gt; result.ready()
+False
+</code></pre>
+</div>
+
+<p>ここで10秒待ってれば、result.ready()がTrueを返すはずなのだが、いつまでたっても値を返さない。workerの方でエラーが出ていた。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>sqlalchemy.exc.ProgrammingError: (psycopg2.ProgrammingError) relation "task_id_sequence" does not exist
+LINE 1: ...us, result, date_done, traceback) VALUES (nextval('task_id_s...
+                                                             ^
+ [SQL: "INSERT INTO celery_taskmeta (id, task_id, status, result, date_done, traceback) VALUES (nextval('task_id_sequence'), %(task_id)s, %(status)s, %(result)s, %(date_done)s, %(traceback)s) RETURNING celery_taskmeta.id"] [parameters: {'traceback': None, 'result': None, 'date_done': datetime.datetime(2016, 7, 25, 5, 56, 32, 951020), 'task_id': '74249288-dc45-40ca-944a-cd0c4a161961', 'status': 'PENDING'}]
+</code></pre>
+</div>
+
+<p>ちょうどこの問題について<a href="https://github.com/celery/celery/issues/3213">議論</a>されており、backendをPostgresqlを使用した時に起きている問題とのこと。2016/05/18に報告されているので新しい問題のようだ。とりあえず回避策としてbackendのデータベースをsqliteにしておいて、修正されたpostgresqlに統一しようと思う。(ここで修正パッチ投げれるようになったらかっこいいな)</p>
+
+<p><a href="https://github.com/KosukeShimofuji/OpenMultiStack/commit/2894ba8879805bdbd04004d6bcbd7ad051c38491">commit</a></p>
+
+<p>migrateし直して、実行すると成功した。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>(OpenMultiStack) kosuke@OpenMultiStack ~/OpenMultiStack/django_project $ python manage.py shell
+Python 3.5.1 (default, Jul 22 2016, 10:16:05)
+[GCC 4.9.2] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+(InteractiveConsole)
+&gt;&gt;&gt; from open_multi_stack.tasks import add
+&gt;&gt;&gt; result = add.delay(1, 2)
+&gt;&gt;&gt; result.ready()
+False
+&gt;&gt;&gt; result.ready()
+False
+&gt;&gt;&gt; result.ready()
+(10秒経過)
+True
+&gt;&gt;&gt; result.get()
+3
+</code></pre>
+</div>
+
+<h1 id="restful-api">
+<a id="restful-api" class="anchor" href="#restful-api" aria-hidden="true"><span class="octicon octicon-link"></span></a>RESTful API</h1>
+
+<p>クライアントはRESTful APIを用いてOpenMultiStackにインスタンス作成命令やインスタンス破棄命令を送ることができます。APIから直接インスタンステーブルを操作することはせず、Queueテーブルを作成してクライアントからの操作に対応します。</p>
+
+<ul>
+  <li>インスタンス作成のFlow
+    <ul>
+      <li>クライアントからPOSTメソッドでインスタンス作成命令をOpenMultiStackに送信する</li>
+      <li>Queueテーブルのレコードを作成する</li>
+      <li>celeryの非同期処理を使い、OpenStackのインスタンス作成処理を開始する</li>
+      <li>インスタンス作成命令の返り値としてQueueレコードの主キーを返す</li>
+      <li>非同期のインスタンス作成処理はOpenStackから得られた値をInstanceテーブルに挿入する</li>
+    </ul>
+  </li>
+  <li>インスタンスが作成されたかどうかを確認
+    <ul>
+      <li>クライアントからGETメソッドでQueueレコードの内容を確認し、インスタンスが立ち上がったかを確認する</li>
+    </ul>
+  </li>
+  <li>インスタンス破棄のFlow
+    <ul>
+      <li>クライアントからDeleteメソッドでインスタンス破棄命令をOpenMultiStackに送信する</li>
+      <li>celeryの非同期処理を使い、OpenStackのインスタンス破棄処理を開始する</li>
+      <li>インスタンス破棄命令の返り値としてQueueレコードの主キーを返す</li>
+      <li>非同期のインスタンス破棄処理はOpenStackからインスタンスが削除されたことを確認して、Instanceテーブルの該当レコードを削除する</li>
+    </ul>
+  </li>
+  <li>インスタンスが破棄されたかどうかを確認
+    <ul>
+      <li>クライアントからGETメソッドでQueueテーブルのレコードの内容を確認し、インスタンスが破棄されたかを確認する</li>
+    </ul>
+  </li>
+</ul>
+
+<h2 id="queue">
+<a id="queueテーブルを定義" class="anchor" href="#queue%E3%83%86%E3%83%BC%E3%83%96%E3%83%AB%E3%82%92%E5%AE%9A%E7%BE%A9" aria-hidden="true"><span class="octicon octicon-link"></span></a>Queueテーブルを定義</h2>
+
+<p><a href="https://github.com/KosukeShimofuji/OpenMultiStack/commit/069eaca9ced7cecd94fa878ab0f497f23067b911">commit</a></p>
+
+<h2 id="django-rest-framework">
+<a id="django-rest-frameworkのインストール" class="anchor" href="#django-rest-framework%E3%81%AE%E3%82%A4%E3%83%B3%E3%82%B9%E3%83%88%E3%83%BC%E3%83%AB" aria-hidden="true"><span class="octicon octicon-link"></span></a>django rest frameworkのインストール</h2>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ pip install djangorestframework django-filter 
+</code></pre>
+</div>
+
+<h2 id="django-rest-framework-1">
+<a id="django-rest-frameworkの有効化" class="anchor" href="#django-rest-framework%E3%81%AE%E6%9C%89%E5%8A%B9%E5%8C%96" aria-hidden="true"><span class="octicon octicon-link"></span></a>django rest frameworkの有効化</h2>
+
+<p><a href="https://github.com/KosukeShimofuji/OpenMultiStack/commit/db917fe29c8bff3d076d3e7f68f4c14e72b20729">commit</a></p>
+
+<h2 id="section-11">
+<a id="シリアライザーを定義する" class="anchor" href="#%E3%82%B7%E3%83%AA%E3%82%A2%E3%83%A9%E3%82%A4%E3%82%B6%E3%83%BC%E3%82%92%E5%AE%9A%E7%BE%A9%E3%81%99%E3%82%8B" aria-hidden="true"><span class="octicon octicon-link"></span></a>シリアライザーを定義する</h2>
+
+<p><a href="https://github.com/KosukeShimofuji/OpenMultiStack/commit/7ce034c7729d978bb172147b67747148b1982bce">commit</a></p>
+
+<h2 id="viewset">
+<a id="viewsetを定義する" class="anchor" href="#viewset%E3%82%92%E5%AE%9A%E7%BE%A9%E3%81%99%E3%82%8B" aria-hidden="true"><span class="octicon octicon-link"></span></a>ViewSetを定義する</h2>
+
+<p><a href="https://github.com/KosukeShimofuji/OpenMultiStack/commit/d5ff35cce4855d05dbd43afef553e41012bdaf4e">commit</a></p>
+
+<h2 id="controllerapiuri">
+<a id="controllerにapiのuriを追加する" class="anchor" href="#controller%E3%81%ABapi%E3%81%AEuri%E3%82%92%E8%BF%BD%E5%8A%A0%E3%81%99%E3%82%8B" aria-hidden="true"><span class="octicon octicon-link"></span></a>ControllerにapiのURIを追加する</h2>
+
+<p><a href="https://github.com/KosukeShimofuji/OpenMultiStack/commit/7150b4254b7bbefcc0d11ffba000ea53a42a6ac7">commit</a></p>
+
+<h2 id="api-1">
+<a id="apiをテストする" class="anchor" href="#api%E3%82%92%E3%83%86%E3%82%B9%E3%83%88%E3%81%99%E3%82%8B" aria-hidden="true"><span class="octicon octicon-link"></span></a>APIをテストする</h2>
+
+<p>http://openmultistack.test:8000/api/にアクセスすると以下のような描画がなされます。</p>
+
+<p><img src="/images/2016/07/22/django_rest_framework_testscreen.png" alt="django_rest_framework_testscreen.png"></p>
+
+<ul>
+  <li>Queueの追加</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ curl -X POST http://openmultistack.test:8000/api/queues/
+{"id":50,"status":"queueing","regist_datetime":"2016-07-26T01:29:26.990608Z","instance":null}
+</code></pre>
+</div>
+
+<ul>
+  <li>Queue全体のの閲覧</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ curl -X GET http://openmultistack.test:8000/api/queues/
+[{"id":50,"status":"queueing","regist_datetime":"2016-07-26T01:29:26.990608Z","instance":null},{"id":51,"status":"queueing","regist_datetime":"2016-07-26T01:30:34.131312Z","instance":null},{"id":52,"status":"queueing","regist_datetime":"2016-07-26T01:30:36.313087Z","instance":null}]
+</code></pre>
+</div>
+
+<ul>
+  <li>Queueの個別閲覧</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ curl -X GET http://openmultistack.test:8000/api/queues/51/
+{"id":51,"status":"queueing","regist_datetime":"2016-07-26T01:30:34.131312Z","instance":null}
+</code></pre>
+</div>
+
+<ul>
+  <li>Queueの削除</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ curl -X DELETE http://openmultistack.test:8000/api/queues/51/
+$ curl -X GET http://openmultistack.test:8000/api/queues/51/
+{"detail":"Not found."}
+</code></pre>
+</div>
+
+<h1 id="signal">
+<a id="signal" class="anchor" href="#signal" aria-hidden="true"><span class="octicon octicon-link"></span></a>Signal</h1>
+
+<p>Queueを作れるようになりましたので、Queueが登録されてからopenstack clientを呼び出すトリガーを用意する必要があります。
+ここではSignalを使って実装してみたいと思います。
+<a href="http://docs.djangoproject.jp/en/latest/topics/signals.html">Signal</a>にはモデルのsave及びdeleteの前後にイベントを発生させる機能があります。これを使えば実装できそうです。
+まずはSignalの動きを把握するためにQueueにレコードを書き込んだ時に/tmp/test.txtに文字列を書き込む仕組みを作成してみます。</p>
+
+<p><a href="https://github.com/KosukeShimofuji/OpenMultiStack/commit/4ab738537a610284494a986e6f631540a8388e6b">commi</a></p>
+
+<p>上記commitを反映させてQueueに書き込みを行うとファイルに文字列書き込みを行うことができます。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ curl -X POST http://openmultistack.test:8000/api/queues/
+{"id":53,"status":"queueing","regist_datetime":"2016-07-26T02:46:54.387192Z","instance":null}
+$ cat /tmp/test.txt
+test 2016/07/26 11:46:54
+</code></pre>
+</div>
+
+<p>Queueテーブルに書き込まれた情報を取得するにはどうすればいいのでしょうか？reciverが受け取っているinstansオブジェクトを参照することで値を得ることができます。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>str(instance.id)
+</code></pre>
+</div>
+
+<p>QueueレコードのIDが取得できればQueueテーブルとOpenStack Clientとの連携はできそうです。</p>
+
+<h1 id="section-12">
+<a id="参考文献" class="anchor" href="#%E5%8F%82%E8%80%83%E6%96%87%E7%8C%AE" aria-hidden="true"><span class="octicon octicon-link"></span></a>参考文献</h1>
+
+<ul>
+  <li>http://docs.djangoproject.jp/en/latest/index.html</li>
+  <li>http://www.django-rest-framework.org/</li>
+  <li>http://qiita.com/kimihiro_n/items/86e0a9e619720e57ecd8</li>
+  <li>http://daigo3.github.io/fullstackpython.github.com/task-queues.html</li>
+  <li>http://docs.celeryproject.org/en/latest/getting-started/first-steps-with-celery.html</li>
+  <li>http://docs.celeryproject.org/en/latest/django/first-steps-with-django.html</li>
+  <li>http://qiita.com/shun666/items/53df90f6d73de2862f1d</li>
+  <li>http://www.django-rest-framework.org/tutorial/quickstart/</li>
+  <li>http://racchai.hatenablog.com/entry/2016/04/12/Django_REST_framework_%E8%B6%85%E5%85%A5%E9%96%80#API-経由でArticleを作成してみよう</li>
+  <li>http://www.koopman.me/2015/01/django-signals-example/</li>
+</ul>
+
+
+  </div>
+
+  <style type="text/css">
+<!--
+/*** sahre button settings ***/
+
+/* adjusting twitter share button */
+ul.share-buttons{
+  margin : 0;
+  list-style: none;
+  padding: 0;
+}
+
+ul.share-buttons li{
+  display: inline;
+}
+
+/* adjusting facebook share button */
+.fb_iframe_widget > span {
+  vertical-align: baseline !important;
+}
+
+/* adjusting google share button */
+#___plusone_0{ width:72px !important; }
+.___plusone_0 > span {
+  vertical-align: baseline !important;
+}
+
+/* adjusting pocket share button */
+.pocket-btn {
+    display: inline;
+}
+-->
+</style>
+
+<!-- twitter share script -->
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+<!-- hatena share script -->
+<script type="text/javascript" src="https://b.st-hatena.com/js/bookmark_button.js" charset="utf-8" async="async"></script>
+
+<!-- facebook sahre script -->
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/ja_JP/sdk.js#xfbml=1&version=v2.6";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<!-- google sahre script -->
+<script src="https://apis.google.com/js/platform.js" async defer>
+ang: 'ja'}
+</script>
+
+<script type="text/javascript">!function(d,i){if(!d.getElementById(i)){var j=d.createElement("script");j.id=i;j.src="https://widgets.getpocket.com/v1/j/btn.js?v=1";var w=d.getElementById(i);d.body.appendChild(j);}}(document,"pocket-btn-js");</script>
+
+<ul class="share-buttons" >
+    <li>
+        <!-- twitter share button -->
+    <a href="https://twitter.com/share"
+       class="twitter-share-button"
+       data-url="https://kosukeshimofuji.jp/2016/07/26/OpenMultiStack/"
+       data-text="OpenMultiStackというものを作りたい | Kosuke Shimofuji's Home Page" >Tweet</a>
+    </li>
+    <li>
+        <!-- facebook share button -->
+        <div class="fb-share-button"
+             data-href="https://kosukeshimofuji.jp/2016/07/26/OpenMultiStack/"
+             data-layout="button_count"></div>
+    </li>
+    <li>
+        <!-- hatena share button -->
+        <a href="http://b.hatena.ne.jp/entry/https://kosukeshimofuji.jp/2016/07/26/OpenMultiStack/"
+           class="hatena-bookmark-button"
+           data-hatena-bookmark-layout="simple-balloon"
+           data-hatena-bookmark-title="OpenMultiStackというものを作りたい | Kosuke Shimofuji's Home Page"
+           data-hatena-bookmark-lang="ja"
+           title="Share on Hatena">
+            <img src="https://b.st-hatena.com/images/entry-button/button-only@2x.png"
+                 alt="Share on Hatena" width="20" height="20" style="border: none;" />
+        </a>
+    </li>
+    <li>
+        <!-- google share button -->
+        <div class="g-plusone"
+             data-href="https://kosukeshimofuji.jp/2016/07/26/OpenMultiStack/"></div>
+    </li>
+    <li>
+        <!-- pocket share button -->
+        <a data-pocket-label="pocket" data-pocket-count="horizontal" class="pocket-btn" data-lang="en"></a>
+    </li>
+</ul>
+
+
+  <br>
+  <div id="disqus_thread"></div>
+<script>
+    /**
+     *  RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
+     *  LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables
+     */
+    /*
+    var disqus_config = function () {
+        this.page.url = PAGE_URL;  // Replace PAGE_URL with your page's canonical URL variable
+        this.page.identifier = PAGE_IDENTIFIER; // Replace PAGE_IDENTIFIER with your page's unique identifier variable
+    };
+    */
+    (function() {  // DON'T EDIT BELOW THIS LINE
+        var d = document, s = d.createElement('script');
+        
+        s.src = '//kosukesimofuji-hp.disqus.com/embed.js';
+        
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+
+</article>
+
+      </div>
+    </div>
+
+    <footer class="site-footer">
+  <div class="site-footer-wrapper">
+    <div id="footer-description">Think about cyber warfare, business warfare.
+</div>
+    <br>
+    <a href="mailto:kosuke.shimofuji@gmail.com"><?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 17.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1 Tiny//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11-tiny.dtd">
+<svg version="1.1" baseProfile="tiny" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+	 x="0px" y="0px" width="30px" height="30px" viewBox="0 0 100 100" overflow="scroll" xml:space="preserve">
+<path fill="#231F20" d="M50,0C22.386,0,0,22.386,0,50s22.386,50,50,50s50-22.386,50-50S77.614,0,50,0z M19.188,72.951V72.85
+	l24.708-23.145l6.103,5.597l5.967-5.472l24.682,23.121H19.188z M80.81,70.861l-23.635-22.14L80.81,27.048L49.999,50L19.188,27.048
+	l23.499,21.547L19.188,70.609V27.048H80.81V70.861z"/>
+</svg>
+</a>
+    <a href="/feed.xml"><?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 17.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1 Tiny//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11-tiny.dtd">
+<svg version="1.1" baseProfile="tiny" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+	 x="0px" y="0px" width="30px" height="30px" viewBox="0 0 100 100" overflow="visible" xml:space="preserve">
+<path fill="#231F20" d="M50,0C22.386,0,0,22.386,0,50s22.386,50,50,50s50-22.386,50-50S77.614,0,50,0z M35.379,70.782h-0.02
+	c-3.111,0-5.646-2.531-5.658-5.641c-0.002-3.119,2.529-5.668,5.646-5.68c3.133,0,5.669,2.529,5.673,5.641
+	C41.03,68.221,38.502,70.768,35.379,70.782z M51.874,70.718c-0.401-11.855-9.782-20.759-22.214-21.064l-0.02-7.672
+	c16.59,0.357,29.486,12.781,29.916,28.711L51.874,70.718z M67.979,70.658c-0.446-20.681-17.11-36.818-38.362-37.105l-0.021-7.674
+	C55.152,26.154,75.201,45.65,75.66,70.625L67.979,70.658z"/>
+</svg>
+</a>
+    <a href="https://github.com/KosukeShimofuji"><?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 17.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1 Tiny//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11-tiny.dtd">
+<svg version="1.1" baseProfile="tiny" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+	 x="0px" y="0px" width="30px" height="30px" viewBox="0 0 100 100" xml:space="preserve">
+<path fill="#231F20" d="M50.141,61.976c3.769,0,6.824,1.903,6.824,4.251s-3.055,4.251-6.824,4.251s-6.824-1.903-6.824-4.251
+	S46.372,61.976,50.141,61.976z M49.23,29.299c2.584,0,4.678,2.632,4.678,5.878s-2.094,5.878-4.678,5.878s-4.678-2.632-4.678-5.878
+	S46.646,29.299,49.23,29.299z M50,0C22.386,0,0,22.386,0,50s22.386,50,50,50s50-22.386,50-50S77.614,0,50,0z M62.501,35.182
+	c0,7.247-5.84,13.135-13.098,13.278c-1.916,3.813-0.003,5.578,1.468,6.328c0,0,0.298,0.151,0.95,0.388
+	c0.239,0.076,0.391,0.107,0.391,0.107s-0.002,0.011-0.003,0.03c0.457,0.155,1.04,0.338,1.76,0.534
+	c0.876,0.146,1.723,0.347,2.533,0.601c0.003,0,0.008,0.002,0.013,0.003c0,0,0.013,0.003,0.017,0.006
+	c1.336,0.421,2.569,0.983,3.664,1.659c0.451,0.259,0.86,0.529,1.16,0.798l0.002,0.002c2.335,1.799,3.819,4.205,3.981,6.916
+	c0.364,6.147-6.211,11.533-14.684,12.029C42.18,78.357,35.016,73.777,34.65,67.63c-0.257-4.348,2.959-8.313,7.859-10.438
+	c-5.216-4.507-2.277-8.819-0.432-10.731c-3.786-2.345-6.308-6.519-6.308-11.279c0-7.337,5.984-13.284,13.365-13.284
+	c2.213,0,4.297,0.537,6.134,1.483c0,0,3.796,1.554,10.098-1.483v8.16h0.002c0,0-1.893,0.859-3.395,1.421
+	C62.314,32.655,62.501,33.897,62.501,35.182z"/>
+</svg>
+
+</a>
+    <a href="https://twitter.com/KosukeShimofuji"><?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 17.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1 Tiny//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11-tiny.dtd">
+<svg version="1.1" baseProfile="tiny" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+	 x="0px" y="0px" width="30px" height="30px" viewBox="0 0 100 100" xml:space="preserve">
+<path fill="#231F20" d="M50,0C22.386,0,0,22.386,0,50s22.386,50,50,50s50-22.386,50-50S77.614,0,50,0z M76.666,38.556
+	c0.023,0.547,0.037,1.096,0.037,1.646c0,16.818-12.801,36.211-36.211,36.211c-7.188,0-13.877-2.106-19.51-5.717
+	c0.996,0.116,2.01,0.177,3.037,0.177c5.963,0,11.449-2.034,15.807-5.448c-5.57-0.102-10.271-3.782-11.891-8.838
+	c0.777,0.148,1.574,0.229,2.395,0.229c1.162,0,2.285-0.156,3.354-0.447C27.862,55.2,23.475,50.056,23.475,43.89
+	c0-0.053,0-0.106,0-0.16c1.717,0.954,3.68,1.526,5.766,1.593c-3.416-2.282-5.662-6.178-5.662-10.594c0-2.332,0.627-4.52,1.723-6.398
+	c6.277,7.699,15.656,12.768,26.234,13.299c-0.219-0.933-0.332-1.904-0.332-2.901C51.203,31.698,56.904,26,63.932,26
+	c3.66,0,6.969,1.545,9.289,4.02c2.9-0.571,5.623-1.63,8.082-3.089c-0.949,2.972-2.969,5.467-5.596,7.041
+	c2.574-0.308,5.027-0.992,7.309-2.004C81.311,34.52,79.152,36.762,76.666,38.556z"/>
+</svg>
+</a>
+    <br><br>
+    <div id="footer-copyright">&copy; 2016 Kosuke Shimofuji. All rights reserved.</div>
+  </div>
+</footer>
+
+
+  </body>
+
+</html>

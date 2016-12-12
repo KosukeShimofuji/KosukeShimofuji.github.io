@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>vulsを触ってみる</title>
+  <meta name="description" content="vulsを自社サービスに導入可能かを検討するために調査を行います。着目する点は導入した際のメリット・デメリット、及び導入・運用のしやすさです。vulsはdockerで簡単に立ち上げることができるようですが、実装についても興味がありますのでここではREADMEに沿って手動でインストールを行い理解を深めます。">
+
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="canonical" href="https://kosukeshimofuji.jp/2016/07/28/research-vuls/">
+  <link rel="alternate" type="application/rss+xml" title="Kosuke Shimofuji's Home Page" href="https://kosukeshimofuji.jp/feed.xml">
+  <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-80482518-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+
+      <meta property="og:url" content="https://kosukeshimofuji.jp/2016/07/28/research-vuls/" />
+  
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="vulsを触ってみる | Kosuke Shimofuji's Home Page" />
+  
+
+
+</head>
+
+
+  <body>
+
+    <header class="site-header">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/">Kosuke Shimofuji's Home Page</a>
+
+    <nav class="site-nav">
+      <a href="#" class="menu-icon">
+        <svg viewBox="0 0 18 15">
+          <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+      </a>
+
+      <div class="trigger">
+        
+          
+          <a class="page-link" href="/about/">About</a>
+          
+        
+          
+        
+          
+        
+          
+          <a class="page-link" href="/links/">Links</a>
+          
+        
+          
+        
+      </div>
+    </nav>
+
+  </div>
+
+</header>
+
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <p class="post-meta">Posted date: <time datetime="2016-07-28T11:00:00+09:00"
+        itemprop="datePublished">2016-07-28 11:00:00 +0900</time></p>
+    <h1 class="post-title" itemprop="name headline">vulsを触ってみる</h1>
+  </header>
+
+  
+    <h2>Table of contents</h2>
+  
+  
+  <div class="post-content" itemprop="articleBody">
+  <ul class="section-nav">
+<li class="toc-entry toc-h1"><a href="#手動でインストールしてみる">手動でインストールしてみる</a></li>
+<li class="toc-entry toc-h2"><a href="#自分自身にssh接続できるようにする">自分自身にSSH接続できるようにする</a></li>
+<li class="toc-entry toc-h2"><a href="#buildに必要なソフトウェアをインストールする">Buildに必要なソフトウェアをインストールする</a></li>
+<li class="toc-entry toc-h2"><a href="#go-cve-dictionaryのデプロイ">go-cve-dictionaryのデプロイ</a></li>
+<li class="toc-entry toc-h2"><a href="#vulsのデプロイ">vulsのデプロイ</a></li>
+<li class="toc-entry toc-h2"><a href="#configを作成">Configを作成</a></li>
+<li class="toc-entry toc-h2"><a href="#ターゲットサーバの事前準備">ターゲットサーバの事前準備</a></li>
+<li class="toc-entry toc-h2"><a href="#スキャンの開始">スキャンの開始</a></li>
+<li class="toc-entry toc-h1"><a href="#脆弱なサーバを用意する">脆弱なサーバを用意する</a></li>
+<li class="toc-entry toc-h2"><a href="#configに脆弱なサーバを加える">Configに脆弱なサーバを加える</a></li>
+<li class="toc-entry toc-h2"><a href="#スキャンの開始-1">スキャンの開始</a></li>
+<li class="toc-entry toc-h2"><a href="#スキャン結果の閲覧">スキャン結果の閲覧</a></li>
+<li class="toc-entry toc-h1"><a href="#実装を読み解く">実装を読み解く</a></li>
+<li class="toc-entry toc-h2"><a href="#distroの特定">Distroの特定</a></li>
+<li class="toc-entry toc-h2"><a href="#パッケージ情報の取得">パッケージ情報の取得</a></li>
+<li class="toc-entry toc-h1"><a href="#パッケージ管理以外のソフトウェアに対応しているのか">パッケージ管理以外のソフトウェアに対応しているのか？</a></li>
+<li class="toc-entry toc-h2"><a href="#ソースから脆弱なソフトウェアをインストール">ソースから脆弱なソフトウェアをインストール</a></li>
+<li class="toc-entry toc-h2"><a href="#cpenameを追加する">cpeNameを追加する</a></li>
+<li class="toc-entry toc-h2"><a href="#スキャンの実行">スキャンの実行</a></li>
+<li class="toc-entry toc-h2"><a href="#結果">結果</a></li>
+<li class="toc-entry toc-h1"><a href="#まとめ">まとめ</a></li>
+<li class="toc-entry toc-h1"><a href="#参考文献">参考文献</a></li>
+</ul><p><a href="https://github.com/future-architect/vuls/blob/master/README.ja.md">vuls</a>を自社サービスに導入可能かを検討するために調査を行います。着目する点は導入した際のメリット・デメリット、及び導入・運用のしやすさです。vulsはdockerで簡単に立ち上げることができるようですが、実装についても興味がありますのでここでは<a href="https://github.com/future-architect/vuls/blob/master/README.ja.md">README</a>に沿って手動でインストールを行い理解を深めます。</p>
+
+<h1 id="section">
+<a id="手動でインストールしてみる" class="anchor" href="#%E6%89%8B%E5%8B%95%E3%81%A7%E3%82%A4%E3%83%B3%E3%82%B9%E3%83%88%E3%83%BC%E3%83%AB%E3%81%97%E3%81%A6%E3%81%BF%E3%82%8B" aria-hidden="true"><span class="octicon octicon-link"></span></a>手動でインストールしてみる</h1>
+
+<ul>
+  <li>検証環境</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>kosuke@vuls ~ $ lsb_release -a
+No LSB modules are available.
+Distributor ID: Debian
+Description:    Debian GNU/Linux 8.5 (jessie)
+Release:        8.5
+Codename:       jessie
+</code></pre>
+</div>
+
+<h2 id="ssh">
+<a id="自分自身にssh接続できるようにする" class="anchor" href="#%E8%87%AA%E5%88%86%E8%87%AA%E8%BA%AB%E3%81%ABssh%E6%8E%A5%E7%B6%9A%E3%81%A7%E3%81%8D%E3%82%8B%E3%82%88%E3%81%86%E3%81%AB%E3%81%99%E3%82%8B" aria-hidden="true"><span class="octicon octicon-link"></span></a>自分自身にSSH接続できるようにする</h2>
+
+<p>この作業は自分自身をscanするために必要な作業です。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>kosuke@vuls ~ $ ssh-keygen -t rsa
+kosuke@vuls ~ $ cat ~/.ssh/id_rsa.pub &gt;&gt; ~/.ssh/authorized_keys
+kosuke@vuls ~ $ chmod 600 ~/.ssh/authorized_keys
+</code></pre>
+</div>
+
+<h2 id="build">
+<a id="buildに必要なソフトウェアをインストールする" class="anchor" href="#build%E3%81%AB%E5%BF%85%E8%A6%81%E3%81%AA%E3%82%BD%E3%83%95%E3%83%88%E3%82%A6%E3%82%A7%E3%82%A2%E3%82%92%E3%82%A4%E3%83%B3%E3%82%B9%E3%83%88%E3%83%BC%E3%83%AB%E3%81%99%E3%82%8B" aria-hidden="true"><span class="octicon octicon-link"></span></a>Buildに必要なソフトウェアをインストールする</h2>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>kosuke@vuls ~ $ sudo apt-get install gcc sqlite3 git
+kosuke@vuls ~ $ wget https://storage.googleapis.com/golang/go1.6.linux-amd64.tar.gz
+kosuke@vuls ~ $ sudo tar -C /usr/local -xzf go1.6.linux-amd64.tar.gz
+kosuke@vuls ~ $ mkdir $HOME/go
+</code></pre>
+</div>
+
+<p>go環境の設定を行う。/etc/profile.d/goenv.shを作成しsourceコマンドで読み込んでおく。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>kosuke@vuls ~ $ cat /etc/profile.d/goenv.sh
+export GOROOT=/usr/local/go
+export GOPATH=$HOME/go
+export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
+kosuke@vuls ~ $ source /etc/profile.d/goenv.sh
+</code></pre>
+</div>
+
+<h2 id="go-cve-dictionaryhttpsgithubcomkotakanbego-cve-dictionary">
+<a id="go-cve-dictionaryのデプロイ" class="anchor" href="#go-cve-dictionary%E3%81%AE%E3%83%87%E3%83%97%E3%83%AD%E3%82%A4" aria-hidden="true"><span class="octicon octicon-link"></span></a><a href="https://github.com/kotakanbe/go-cve-dictionary">go-cve-dictionary</a>のデプロイ</h2>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>kosuke@vuls ~ $ sudo mkdir /var/log/vuls
+kosuke@vuls ~ $ sudo chmod 700 /var/log/vuls
+kosuke@vuls ~ $ sudo chown kosuke /var/log/vuls/
+kosuke@vuls ~ $ go get github.com/kotakanbe/go-cve-dictionary
+</code></pre>
+</div>
+
+<p>脆弱性データベースの取得を行う。手元のvagrant環境ではこの作業に4時間かかった。nvdのサーバが重たいみたいだ。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>kosuke@vuls ~ $ for i in {2002..2016}; do go-cve-dictionary fetchnvd -years $i; done
+...snip...
+kosuke@vuls ~ $ ls -alh cve.sqlite3
+-rw-r--r-- 1 kosuke kosuke 555M  7月 27 14:54 cve.sqlite3
+</code></pre>
+</div>
+
+<h2 id="vuls">
+<a id="vulsのデプロイ" class="anchor" href="#vuls%E3%81%AE%E3%83%87%E3%83%97%E3%83%AD%E3%82%A4" aria-hidden="true"><span class="octicon octicon-link"></span></a>vulsのデプロイ</h2>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>kosuke@vuls ~ $ go get github.com/future-architect/vuls
+</code></pre>
+</div>
+
+<h2 id="config">
+<a id="configを作成" class="anchor" href="#config%E3%82%92%E4%BD%9C%E6%88%90" aria-hidden="true"><span class="octicon octicon-link"></span></a>Configを作成</h2>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>kosuke@vuls ~ $ cat config.toml
+[servers]
+
+[servers.127-0-0-1]
+host         = "127.0.0.1"
+port        = "22"
+user        = "kosuke"
+keyPath     = "/home/kosuke/.ssh/id_rsa"
+kosuke@vuls ~ $ vuls configtest
+[Jul 27 15:50:09]  INFO [localhost] Validating Config...
+[Jul 27 15:50:09]  INFO [localhost] Detecting Server/Contianer OS...
+[Jul 27 15:50:09]  INFO [localhost] Detecting OS of servers...
+[Jul 27 15:50:09]  INFO [localhost] (1/1) Detected: 127-0-0-1: debian 8.5
+[Jul 27 15:50:09]  INFO [localhost] Detecting OS of containers...
+[Jul 27 15:50:09]  INFO [localhost] SSH-able servers are below...
+127-0-0-1
+</code></pre>
+</div>
+
+<h2 id="section-1">
+<a id="ターゲットサーバの事前準備" class="anchor" href="#%E3%82%BF%E3%83%BC%E3%82%B2%E3%83%83%E3%83%88%E3%82%B5%E3%83%BC%E3%83%90%E3%81%AE%E4%BA%8B%E5%89%8D%E6%BA%96%E5%82%99" aria-hidden="true"><span class="octicon octicon-link"></span></a>ターゲットサーバの事前準備</h2>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>kosuke@vuls ~ $ vuls prepare
+INFO[0000] Start Preparing (config: /home/kosuke/config.toml)
+[Jul 27 15:51:03]  INFO [localhost] Detecting OS...
+[Jul 27 15:51:03]  INFO [localhost] Detecting OS of servers...
+[Jul 27 15:51:03]  INFO [localhost] (1/1) Detected: 127-0-0-1: debian 8.5
+[Jul 27 15:51:03]  INFO [localhost] Detecting OS of containers...
+[Jul 27 15:51:03]  INFO [localhost] SSH-able servers are below...
+127-0-0-1
+[Jul 27 15:51:03]  INFO [localhost] Installing...
+[Jul 27 15:51:03]  INFO [127-0-0-1] apt-get update...
+[Jul 27 15:51:18]  INFO [127-0-0-1] Installed: aptitude
+[Jul 27 15:51:18]  INFO [localhost] Success
+</code></pre>
+</div>
+
+<h2 id="section-2">
+<a id="スキャンの開始" class="anchor" href="#%E3%82%B9%E3%82%AD%E3%83%A3%E3%83%B3%E3%81%AE%E9%96%8B%E5%A7%8B" aria-hidden="true"><span class="octicon octicon-link"></span></a>スキャンの開始</h2>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>kosuke@vuls ~ $ vuls scan -cve-dictionary-dbpath=$PWD/cve.sqlite3
+INFO[0000] Start scanning
+INFO[0000] config: /home/kosuke/config.toml
+INFO[0000] cve-dictionary: /home/kosuke/cve.sqlite3
+[Jul 27 15:52:24]  INFO [localhost] Validating Config...
+[Jul 27 15:52:24]  INFO [localhost] Detecting Server/Contianer OS...
+[Jul 27 15:52:24]  INFO [localhost] Detecting OS of servers...
+[Jul 27 15:52:24]  INFO [localhost] (1/1) Detected: 127-0-0-1: debian 8.5
+[Jul 27 15:52:24]  INFO [localhost] Detecting OS of containers...
+[Jul 27 15:52:24]  INFO [localhost] SSH-able servers are below...
+127-0-0-1
+[Jul 27 15:52:24]  INFO [localhost] Detecting Platforms...
+[Jul 27 15:52:27]  INFO [localhost] (1/1) 127-0-0-1 is running on other
+[Jul 27 15:52:27]  INFO [localhost] Scanning vulnerabilities...
+[Jul 27 15:52:27]  INFO [localhost] Check required packages for scanning...
+[Jul 27 15:52:27]  INFO [localhost] Scanning vulnerable OS packages...
+[Jul 27 15:52:36]  INFO [127-0-0-1] Fetching CVE details...
+[Jul 27 15:52:36]  INFO [127-0-0-1] Done
+[Jul 27 15:52:36]  INFO [localhost] Scanning vulnerable software specified in the CPE...
+[Jul 27 15:52:36]  INFO [localhost] Insert to DB...
+[Jul 27 15:52:36]  INFO [localhost] Reporting...
+
+127-0-0-1 (debian8.5)
+=====================
+No unsecure packages.
+</code></pre>
+</div>
+
+<h1 id="section-3">
+<a id="脆弱なサーバを用意する" class="anchor" href="#%E8%84%86%E5%BC%B1%E3%81%AA%E3%82%B5%E3%83%BC%E3%83%90%E3%82%92%E7%94%A8%E6%84%8F%E3%81%99%E3%82%8B" aria-hidden="true"><span class="octicon octicon-link"></span></a>脆弱なサーバを用意する</h1>
+
+<p>vulsの対応しているOSは以下なので、この中から脆弱なサーバを作成する。</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Distribution</th>
+      <th>Release</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Ubuntu</td>
+      <td>12, 14, 16</td>
+    </tr>
+    <tr>
+      <td>Debian</td>
+      <td>7, 8</td>
+    </tr>
+    <tr>
+      <td>RHEL</td>
+      <td>4, 5, 6, 7</td>
+    </tr>
+    <tr>
+      <td>CentOS</td>
+      <td>5, 6, 7</td>
+    </tr>
+    <tr>
+      <td>Amazon Linux</td>
+      <td>All</td>
+    </tr>
+    <tr>
+      <td>FreeBSD</td>
+      <td>10</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>脆弱なサーバは<a href="https://vagrantcloud.com/box-cutter">box-cutter</a>から用意する。意図的にパッケージをupgradeしないことで脆弱な状態が作り出せるはずだ。以下のboxを選んで4台構築する。</p>
+
+<ul>
+  <li><a href="https://vagrantcloud.com/box-cutter/boxes/ubuntu1204-i386">ubuntu1204-i386</a></li>
+  <li><a href="https://vagrantcloud.com/box-cutter/boxes/debian81">debian81</a></li>
+  <li><a href="https://vagrantcloud.com/box-cutter/boxes/centos510">centos510</a></li>
+  <li><a href="https://vagrantcloud.com/box-cutter/boxes/freebsd102">freebsd102</a></li>
+</ul>
+
+<p>このような<a href="https://github.com/KosukeShimofuji/vuls-envrionment/blob/27f32e2c8a9c1ee506c0092e4d2949b0d267c207/ansible/Vagrantfile">Vagrantfile</a>を用意して一気にHostを立ち上げる。作成された脆弱なホストとIPアドレスの対応は以下の通り。</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Hostname</th>
+      <th>IP Address</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>ubuntu1204-i386.test</td>
+      <td>192.168.10.108</td>
+    </tr>
+    <tr>
+      <td>debian81.test</td>
+      <td>192.168.10.109</td>
+    </tr>
+    <tr>
+      <td>centos510.test</td>
+      <td>192.168.10.110</td>
+    </tr>
+    <tr>
+      <td>freebsd102.test</td>
+      <td>192.168.10.111</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>それぞれのホストにvulsがSSH接続できるように公開鍵の設定を行う。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ vagrant ssh ubuntu1204-i386.test
+vagrant@vagrant:~$ cat &gt;&gt; .ssh/authorized_keys
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDbGxMzWGY7vmBb2CsUoLQ7OTM3ulKZ9D5CQJRcCxw6/4+4aLiqAg2r4DEvmwb1LvG7mjCSysKe+0Df2mYkNMzdobYKMWYxh7D33o4vSJnfFWOp0CGqbmR+R9D7T3YS5h0jOE7JpQ+boe/kLwDib5tTtglg9qKobJjfysISTatp7/zhJ9gBrrM/pbLfBiReVH4h+iHOHPSpSDmppnyMsC7pSPvcyFN8St2PrKeDhCO1JkGitFKUXZSK4DKLnXpsBF3Ls0Ydco/9TxJW95/Owh/UVczs+vBPBMGHAay3L4czQlVMNJK0Lp1HvGSRr3ClT9rNdPpWlDbMcHVK+Ln+XQYZ kosuke@vuls.test
+^C
+</code></pre>
+</div>
+
+<p>ちなみにcentos510.testは起動時にnicの立ち上げに失敗したので、vagrant sshでログインしてから/sbin/ifup eth1してnicを立ち上げる必要があった。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code># Down the interface before munging the config file. This might
+# fail if the interface is not actually set up yet so ignore
+# errors.
+/sbin/ifdown '' || true
+
+# Move new config into place
+mv '/tmp/vagrant-network-entry--1469611151-0' '/etc/sysconfig/network-scripts/ifcfg-'
+
+# Bring the interface up
+ARPCHECK=no /sbin/ifup ''
+
+
+Stdout from the command:
+
+
+
+Stderr from the command:
+
+usage: ifdown &lt;device name&gt;
+Usage: ifup &lt;device name&gt;
+
+$ vagrant ssh centos510.test
+$ sudo -s 
+# /sbin/ifup eth1
+# /sbin/ifconfig eth1
+eth1      Link encap:Ethernet  HWaddr 08:00:27:07:F4:A9
+          inet addr:192.168.10.110  Bcast:192.168.10.255  Mask:255.255.255.0
+          inet6 addr: fe80::a00:27ff:fe07:f4a9/64 Scope:Link
+          UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+          RX packets:23 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:12 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:1000
+          RX bytes:2052 (2.0 KiB)  TX bytes:720 (720.0 b)
+</code></pre>
+</div>
+
+<h2 id="config-1">
+<a id="configに脆弱なサーバを加える" class="anchor" href="#config%E3%81%AB%E8%84%86%E5%BC%B1%E3%81%AA%E3%82%B5%E3%83%BC%E3%83%90%E3%82%92%E5%8A%A0%E3%81%88%E3%82%8B" aria-hidden="true"><span class="octicon octicon-link"></span></a>Configに脆弱なサーバを加える</h2>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>kosuke@vuls ~ $ cat config.toml
+[servers]
+
+[servers.vuls]
+host         = "127.0.0.1"
+port        = "22"
+user        = "kosuke"
+keyPath     = "/home/kosuke/.ssh/id_rsa"
+
+[servers.ubuntu1204-i386]
+host         = "192.168.10.108"
+port        = "22"
+user        = "kosuke"
+keyPath     = "/home/kosuke/.ssh/id_rsa"
+
+[servers.debian81]
+host         = "192.168.10.109"
+port        = "22"
+user        = "kosuke"
+keyPath     = "/home/kosuke/.ssh/id_rsa"
+
+[servers.centos510]
+host         = "192.168.10.110"
+port        = "22"
+user        = "kosuke"
+keyPath     = "/home/kosuke/.ssh/id_rsa"
+
+[servers.freebsd102]
+host         = "192.168.10.111"
+port        = "22"
+user        = "kosuke"
+keyPath     = "/home/kosuke/.ssh/id_rsa"
+</code></pre>
+</div>
+
+<h2 id="section-4">
+<a id="スキャンの開始-1" class="anchor" href="#%E3%82%B9%E3%82%AD%E3%83%A3%E3%83%B3%E3%81%AE%E9%96%8B%E5%A7%8B-1" aria-hidden="true"><span class="octicon octicon-link"></span></a>スキャンの開始</h2>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>kosuke@vuls ~ $ vuls scan -cve-dictionary-dbpath=$PWD/cve.sqlite3
+...snip...
+[Jul 27 18:47:12] ERROR [centos510] yum-changelog is not installed
+[Jul 27 18:47:12] ERROR [localhost] Please execute with [prepare] subcommand to install required packages before scanning
+[Jul 27 18:47:12] ERROR [localhost] Failed to scan. err: vagrant@192.168.10.110:22: yum-changelog is not installed
+</code></pre>
+</div>
+
+<p>centosにはyum-changelogが必要のようだ。centosにyum-changelogを導入して再実行する。</p>
+
+<p><a href="https://gist.github.com/KosukeShimofuji/4f96bf2336737bf51c484e194f60a5aa">実行ログ</a></p>
+
+<h2 id="section-5">
+<a id="スキャン結果の閲覧" class="anchor" href="#%E3%82%B9%E3%82%AD%E3%83%A3%E3%83%B3%E7%B5%90%E6%9E%9C%E3%81%AE%E9%96%B2%E8%A6%A7" aria-hidden="true"><span class="octicon octicon-link"></span></a>スキャン結果の閲覧</h2>
+
+<p>ログだけでは俯瞰しにくいが、vulsはCUIの俯瞰できる画面を持っている。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>kosuke@vuls ~ $ vuls tui
+</code></pre>
+</div>
+
+<p><img src="/images/2016/07/27/vuls_tui.gif" alt="vuls_tui"></p>
+
+<p>また<a href="https://github.com/usiusi360/vulsrepo">vulsrepo</a>というweb interfaceもあるため、情報を集約して俯瞰するための仕組みは整っている。</p>
+
+<h1 id="section-6">
+<a id="実装を読み解く" class="anchor" href="#%E5%AE%9F%E8%A3%85%E3%82%92%E8%AA%AD%E3%81%BF%E8%A7%A3%E3%81%8F" aria-hidden="true"><span class="octicon octicon-link"></span></a>実装を読み解く</h1>
+
+<p>vulsを使う中で気になる点は</p>
+
+<ul>
+  <li>OS、ソフトウェアの情報をどのように取得しているのか?</li>
+  <li>パッケージ管理以外のソフトウェアも対象となるのか？</li>
+</ul>
+
+<p>いう点だったので、この点に着目してソースを読んでみる。</p>
+
+<h2 id="distro">
+<a id="distroの特定" class="anchor" href="#distro%E3%81%AE%E7%89%B9%E5%AE%9A" aria-hidden="true"><span class="octicon octicon-link"></span></a>Distroの特定</h2>
+
+<ul>
+  <li>
+<a href="https://github.com/future-architect/vuls/blob/master/scan/debian.go">debian</a>
+    <ul>
+      <li>/etc/debian_version</li>
+      <li>lsb_release -ir</li>
+      <li>/etc/lsb-release</li>
+    </ul>
+  </li>
+  <li>
+<a href="https://github.com/future-architect/vuls/blob/master/scan/redhat.go">redhat</a>
+    <ul>
+      <li>/etc/fedora-release</li>
+      <li>/etc/redhat-release</li>
+      <li>/etc/system-release</li>
+    </ul>
+  </li>
+  <li>
+<a href="https://github.com/future-architect/vuls/blob/master/scan/freebsd.go">freebsd</a>
+    <ul>
+      <li>uname -r</li>
+    </ul>
+  </li>
+</ul>
+
+<h2 id="section-7">
+<a id="パッケージ情報の取得" class="anchor" href="#%E3%83%91%E3%83%83%E3%82%B1%E3%83%BC%E3%82%B8%E6%83%85%E5%A0%B1%E3%81%AE%E5%8F%96%E5%BE%97" aria-hidden="true"><span class="octicon octicon-link"></span></a>パッケージ情報の取得</h2>
+
+<ul>
+  <li>
+<a href="https://github.com/future-architect/vuls/blob/v0.1.4/scan/debian.go#L184-L210">debian</a>
+    <ul>
+      <li>dpkg-query -W</li>
+      <li>他にaptやaptitudeから情報を取得する</li>
+    </ul>
+  </li>
+  <li>
+<a href="https://github.com/future-architect/vuls/blob/v0.1.4/scan/redhat.go#L239-L256">redhat</a>
+    <ul>
+      <li>yum-plugin-security</li>
+      <li>yum-changelog</li>
+      <li>yum-plugin-changelog</li>
+    </ul>
+  </li>
+  <li>freebsd
+    <ul>
+      <li>pkg version -v</li>
+    </ul>
+  </li>
+</ul>
+
+<h1 id="section-8">
+<a id="パッケージ管理以外のソフトウェアに対応しているのか" class="anchor" href="#%E3%83%91%E3%83%83%E3%82%B1%E3%83%BC%E3%82%B8%E7%AE%A1%E7%90%86%E4%BB%A5%E5%A4%96%E3%81%AE%E3%82%BD%E3%83%95%E3%83%88%E3%82%A6%E3%82%A7%E3%82%A2%E3%81%AB%E5%AF%BE%E5%BF%9C%E3%81%97%E3%81%A6%E3%81%84%E3%82%8B%E3%81%AE%E3%81%8B" aria-hidden="true"><span class="octicon octicon-link"></span></a>パッケージ管理以外のソフトウェアに対応しているのか？</h1>
+
+<p>vulsさんの作者の<a href="https://github.com/kotakanbe">kotakanbe</a>さんに教えていただいた。ドキュメントにしっかり<a href="https://github.com/future-architect/vuls/blob/master/README.ja.md#usage-scan-vulnerability-of-non-os-package">記述</a>がある。
+<a href="/2016/07/19/CVE-2016-5734/">CVE-2016-5734 phpMyAdminに任意のコマンドの実行可能な脆弱性</a>にて調査を行った検証環境をvuls.testに作成して、パッケージ管理されていないソフトウェアが検知できるのかを確認する。</p>
+
+<h2 id="section-9">
+<a id="ソースから脆弱なソフトウェアをインストール" class="anchor" href="#%E3%82%BD%E3%83%BC%E3%82%B9%E3%81%8B%E3%82%89%E8%84%86%E5%BC%B1%E3%81%AA%E3%82%BD%E3%83%95%E3%83%88%E3%82%A6%E3%82%A7%E3%82%A2%E3%82%92%E3%82%A4%E3%83%B3%E3%82%B9%E3%83%88%E3%83%BC%E3%83%AB" aria-hidden="true"><span class="octicon octicon-link"></span></a>ソースから脆弱なソフトウェアをインストール</h2>
+
+<ul>
+  <li>APR(Apache Protable Runtime)のインストール</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ wget http://ftp.yz.yamagata-u.ac.jp/pub/network/apache//apr/apr-1.5.2.tar.gz
+$ tar zxvf apr-1.5.2.tar.gz
+$ cd apr-1.5.2
+$ ./configure --prefix=/opt/apr-1.5.2
+$ make
+$ sudo make install
+</code></pre>
+</div>
+
+<ul>
+  <li>APR-Utilのインストール</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ wget http://ftp.yz.yamagata-u.ac.jp/pub/network/apache//apr/apr-util-1.5.4.tar.gz
+$ tar zxvf apr-util-1.5.4.tar.gz
+$ cd apr-util-1.5.4
+$ ./configure --prefix=/opt/apr-util-1.5.4 --with-apr=/opt/apr-1.5.2
+$ make
+$ sudo make install
+</code></pre>
+</div>
+
+<ul>
+  <li>PCRE(Perl Compatible Regular Expressions)のインストール</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ wget ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre-8.39.tar.gz
+$ tar zxvf pcre-8.39.tar.gz
+$ cd pcre-8.39
+$ ./configure --prefix=/opt/pcre-8.37
+$ make
+$ sudo make install
+</code></pre>
+</div>
+
+<ul>
+  <li>Apacheのインストール</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ wget http://ftp.tsukuba.wide.ad.jp/software/apache//httpd/httpd-2.4.23.tar.gz
+$ tar zxvf httpd-2.4.23.tar.gz
+$ cd httpd-2.4.23
+$ ./configure --with-apr=/opt/apr-1.5.2 --with-apr-util=/opt/apr-util-1.5.4 --with-pcre=/opt/pcre-8.37
+$ make
+$ sudo make install
+$ /usr/local/apache2/bin/httpd -v
+Server version: Apache/2.4.23 (Unix)
+Server built:   Jul 14 2016 12:52:16
+</code></pre>
+</div>
+
+<ul>
+  <li>PHP5.4.6</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ sudo apt-get install libxml2-dev
+$ wget http://museum.php.net/php5/php-5.4.6.tar.gz
+$ tar zxvf php-5.4.6.tar.gz
+$ cd php-5.4.6
+$ curl -s https://mail.gnome.org/archives/xml/2012-August/txtbgxGXAvz4N.txt | patch -p0
+$ ./configure --with-apxs2=/usr/local/apache2/bin/apxs --with-mysql --enable-mbstring --enable-embedded-mysqli
+$ make
+$ sudo make install
+$ php --version
+PHP 5.4.6 (cli) (built: Jul 14 2016 14:08:12)
+Copyright (c) 1997-2012 The PHP Group
+Zend Engine v2.4.0, Copyright (c) 1998-2012 Zend Technologies
+$ sudo cp php.ini-development /usr/local/lib/php.ini
+</code></pre>
+</div>
+
+<ul>
+  <li>phpMyAdmin4.4.15.6のインストール</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ wget https://files.phpmyadmin.net/phpMyAdmin/4.4.15.6/phpMyAdmin-4.4.15.6-all-languages.tar.gz
+$ tar zxvf phpMyAdmin-4.4.15.6-all-languages.tar.gz
+$ sudo mkdir /usr/local/apache2/htdocs/phpmyadmin4.4
+$ sudo cp -r phpMyAdmin-4.4.15.6-all-languages/* /usr/local/apache2/htdocs/phpmyadmin4.4/
+</code></pre>
+</div>
+
+<h2 id="cpename">
+<a id="cpenameを追加する" class="anchor" href="#cpename%E3%82%92%E8%BF%BD%E5%8A%A0%E3%81%99%E3%82%8B" aria-hidden="true"><span class="octicon octicon-link"></span></a>cpeNameを追加する</h2>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>kosuke@vuls ~ $ cat config.toml
+[servers]
+
+[servers.127-0-0-1]
+host         = "127.0.0.1"
+port        = "22"
+user        = "kosuke"
+keyPath     = "/home/kosuke/.ssh/id_rsa"
+cpeNames = [
+  "cpe:/a:phpmyadmin:phpmyadmin:4.4.15.6",
+]
+</code></pre>
+</div>
+
+<h2 id="section-10">
+<a id="スキャンの実行" class="anchor" href="#%E3%82%B9%E3%82%AD%E3%83%A3%E3%83%B3%E3%81%AE%E5%AE%9F%E8%A1%8C" aria-hidden="true"><span class="octicon octicon-link"></span></a>スキャンの実行</h2>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ vuls scan -cve-dictionary-dbpath=$PWD/cve.sqlite3
+$ vuls tui
+</code></pre>
+</div>
+
+<p>CVE-2016-5734含め、複数の脆弱性が報告された。</p>
+
+<h2 id="section-11">
+<a id="結果" class="anchor" href="#%E7%B5%90%E6%9E%9C" aria-hidden="true"><span class="octicon octicon-link"></span></a>結果</h2>
+
+<p>パッケージ管理されていないソフトウェアでもcpe情報をconfig.tomlに書き込めば対応することができる。</p>
+
+<h1 id="section-12">
+<a id="まとめ" class="anchor" href="#%E3%81%BE%E3%81%A8%E3%82%81" aria-hidden="true"><span class="octicon octicon-link"></span></a>まとめ</h1>
+
+<p>導入することにより、apt,yum,pkgなどでインストールされたパッケージについて既知の脆弱性があるかを調査することができる。導入は容易であり、各ホストにsudoを実行できるユーザを作成し、公開鍵を登録すればいい。運用については通知や俯瞰の仕組みは整っているので、運用もしやすいと思う。
+パッケージ管理されていないソフトウェアについてもcpe情報をconfig.tomlに集約できれば、内在している可能性がある脆弱性を洗い出すことができる。</p>
+
+<h1 id="section-13">
+<a id="参考文献" class="anchor" href="#%E5%8F%82%E8%80%83%E6%96%87%E7%8C%AE" aria-hidden="true"><span class="octicon octicon-link"></span></a>参考文献</h1>
+
+<ul>
+  <li>https://github.com/future-architect/vuls/blob/master/README.ja.md</li>
+  <li>http://qiita.com/tags/vuls/stocks</li>
+  <li>https://www.ipa.go.jp/security/vuln/CPE.html</li>
+</ul>
+
+
+  </div>
+
+  <style type="text/css">
+<!--
+/*** sahre button settings ***/
+
+/* adjusting twitter share button */
+ul.share-buttons{
+  margin : 0;
+  list-style: none;
+  padding: 0;
+}
+
+ul.share-buttons li{
+  display: inline;
+}
+
+/* adjusting facebook share button */
+.fb_iframe_widget > span {
+  vertical-align: baseline !important;
+}
+
+/* adjusting google share button */
+#___plusone_0{ width:72px !important; }
+.___plusone_0 > span {
+  vertical-align: baseline !important;
+}
+
+/* adjusting pocket share button */
+.pocket-btn {
+    display: inline;
+}
+-->
+</style>
+
+<!-- twitter share script -->
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+<!-- hatena share script -->
+<script type="text/javascript" src="https://b.st-hatena.com/js/bookmark_button.js" charset="utf-8" async="async"></script>
+
+<!-- facebook sahre script -->
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/ja_JP/sdk.js#xfbml=1&version=v2.6";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<!-- google sahre script -->
+<script src="https://apis.google.com/js/platform.js" async defer>
+ang: 'ja'}
+</script>
+
+<script type="text/javascript">!function(d,i){if(!d.getElementById(i)){var j=d.createElement("script");j.id=i;j.src="https://widgets.getpocket.com/v1/j/btn.js?v=1";var w=d.getElementById(i);d.body.appendChild(j);}}(document,"pocket-btn-js");</script>
+
+<ul class="share-buttons" >
+    <li>
+        <!-- twitter share button -->
+    <a href="https://twitter.com/share"
+       class="twitter-share-button"
+       data-url="https://kosukeshimofuji.jp/2016/07/28/research-vuls/"
+       data-text="vulsを触ってみる | Kosuke Shimofuji's Home Page" >Tweet</a>
+    </li>
+    <li>
+        <!-- facebook share button -->
+        <div class="fb-share-button"
+             data-href="https://kosukeshimofuji.jp/2016/07/28/research-vuls/"
+             data-layout="button_count"></div>
+    </li>
+    <li>
+        <!-- hatena share button -->
+        <a href="http://b.hatena.ne.jp/entry/https://kosukeshimofuji.jp/2016/07/28/research-vuls/"
+           class="hatena-bookmark-button"
+           data-hatena-bookmark-layout="simple-balloon"
+           data-hatena-bookmark-title="vulsを触ってみる | Kosuke Shimofuji's Home Page"
+           data-hatena-bookmark-lang="ja"
+           title="Share on Hatena">
+            <img src="https://b.st-hatena.com/images/entry-button/button-only@2x.png"
+                 alt="Share on Hatena" width="20" height="20" style="border: none;" />
+        </a>
+    </li>
+    <li>
+        <!-- google share button -->
+        <div class="g-plusone"
+             data-href="https://kosukeshimofuji.jp/2016/07/28/research-vuls/"></div>
+    </li>
+    <li>
+        <!-- pocket share button -->
+        <a data-pocket-label="pocket" data-pocket-count="horizontal" class="pocket-btn" data-lang="en"></a>
+    </li>
+</ul>
+
+
+  <br>
+  <div id="disqus_thread"></div>
+<script>
+    /**
+     *  RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
+     *  LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables
+     */
+    /*
+    var disqus_config = function () {
+        this.page.url = PAGE_URL;  // Replace PAGE_URL with your page's canonical URL variable
+        this.page.identifier = PAGE_IDENTIFIER; // Replace PAGE_IDENTIFIER with your page's unique identifier variable
+    };
+    */
+    (function() {  // DON'T EDIT BELOW THIS LINE
+        var d = document, s = d.createElement('script');
+        
+        s.src = '//kosukesimofuji-hp.disqus.com/embed.js';
+        
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+
+</article>
+
+      </div>
+    </div>
+
+    <footer class="site-footer">
+  <div class="site-footer-wrapper">
+    <div id="footer-description">Think about cyber warfare, business warfare.
+</div>
+    <br>
+    <a href="mailto:kosuke.shimofuji@gmail.com"><?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 17.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1 Tiny//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11-tiny.dtd">
+<svg version="1.1" baseProfile="tiny" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+	 x="0px" y="0px" width="30px" height="30px" viewBox="0 0 100 100" overflow="scroll" xml:space="preserve">
+<path fill="#231F20" d="M50,0C22.386,0,0,22.386,0,50s22.386,50,50,50s50-22.386,50-50S77.614,0,50,0z M19.188,72.951V72.85
+	l24.708-23.145l6.103,5.597l5.967-5.472l24.682,23.121H19.188z M80.81,70.861l-23.635-22.14L80.81,27.048L49.999,50L19.188,27.048
+	l23.499,21.547L19.188,70.609V27.048H80.81V70.861z"/>
+</svg>
+</a>
+    <a href="/feed.xml"><?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 17.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1 Tiny//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11-tiny.dtd">
+<svg version="1.1" baseProfile="tiny" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+	 x="0px" y="0px" width="30px" height="30px" viewBox="0 0 100 100" overflow="visible" xml:space="preserve">
+<path fill="#231F20" d="M50,0C22.386,0,0,22.386,0,50s22.386,50,50,50s50-22.386,50-50S77.614,0,50,0z M35.379,70.782h-0.02
+	c-3.111,0-5.646-2.531-5.658-5.641c-0.002-3.119,2.529-5.668,5.646-5.68c3.133,0,5.669,2.529,5.673,5.641
+	C41.03,68.221,38.502,70.768,35.379,70.782z M51.874,70.718c-0.401-11.855-9.782-20.759-22.214-21.064l-0.02-7.672
+	c16.59,0.357,29.486,12.781,29.916,28.711L51.874,70.718z M67.979,70.658c-0.446-20.681-17.11-36.818-38.362-37.105l-0.021-7.674
+	C55.152,26.154,75.201,45.65,75.66,70.625L67.979,70.658z"/>
+</svg>
+</a>
+    <a href="https://github.com/KosukeShimofuji"><?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 17.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1 Tiny//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11-tiny.dtd">
+<svg version="1.1" baseProfile="tiny" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+	 x="0px" y="0px" width="30px" height="30px" viewBox="0 0 100 100" xml:space="preserve">
+<path fill="#231F20" d="M50.141,61.976c3.769,0,6.824,1.903,6.824,4.251s-3.055,4.251-6.824,4.251s-6.824-1.903-6.824-4.251
+	S46.372,61.976,50.141,61.976z M49.23,29.299c2.584,0,4.678,2.632,4.678,5.878s-2.094,5.878-4.678,5.878s-4.678-2.632-4.678-5.878
+	S46.646,29.299,49.23,29.299z M50,0C22.386,0,0,22.386,0,50s22.386,50,50,50s50-22.386,50-50S77.614,0,50,0z M62.501,35.182
+	c0,7.247-5.84,13.135-13.098,13.278c-1.916,3.813-0.003,5.578,1.468,6.328c0,0,0.298,0.151,0.95,0.388
+	c0.239,0.076,0.391,0.107,0.391,0.107s-0.002,0.011-0.003,0.03c0.457,0.155,1.04,0.338,1.76,0.534
+	c0.876,0.146,1.723,0.347,2.533,0.601c0.003,0,0.008,0.002,0.013,0.003c0,0,0.013,0.003,0.017,0.006
+	c1.336,0.421,2.569,0.983,3.664,1.659c0.451,0.259,0.86,0.529,1.16,0.798l0.002,0.002c2.335,1.799,3.819,4.205,3.981,6.916
+	c0.364,6.147-6.211,11.533-14.684,12.029C42.18,78.357,35.016,73.777,34.65,67.63c-0.257-4.348,2.959-8.313,7.859-10.438
+	c-5.216-4.507-2.277-8.819-0.432-10.731c-3.786-2.345-6.308-6.519-6.308-11.279c0-7.337,5.984-13.284,13.365-13.284
+	c2.213,0,4.297,0.537,6.134,1.483c0,0,3.796,1.554,10.098-1.483v8.16h0.002c0,0-1.893,0.859-3.395,1.421
+	C62.314,32.655,62.501,33.897,62.501,35.182z"/>
+</svg>
+
+</a>
+    <a href="https://twitter.com/KosukeShimofuji"><?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 17.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1 Tiny//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11-tiny.dtd">
+<svg version="1.1" baseProfile="tiny" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+	 x="0px" y="0px" width="30px" height="30px" viewBox="0 0 100 100" xml:space="preserve">
+<path fill="#231F20" d="M50,0C22.386,0,0,22.386,0,50s22.386,50,50,50s50-22.386,50-50S77.614,0,50,0z M76.666,38.556
+	c0.023,0.547,0.037,1.096,0.037,1.646c0,16.818-12.801,36.211-36.211,36.211c-7.188,0-13.877-2.106-19.51-5.717
+	c0.996,0.116,2.01,0.177,3.037,0.177c5.963,0,11.449-2.034,15.807-5.448c-5.57-0.102-10.271-3.782-11.891-8.838
+	c0.777,0.148,1.574,0.229,2.395,0.229c1.162,0,2.285-0.156,3.354-0.447C27.862,55.2,23.475,50.056,23.475,43.89
+	c0-0.053,0-0.106,0-0.16c1.717,0.954,3.68,1.526,5.766,1.593c-3.416-2.282-5.662-6.178-5.662-10.594c0-2.332,0.627-4.52,1.723-6.398
+	c6.277,7.699,15.656,12.768,26.234,13.299c-0.219-0.933-0.332-1.904-0.332-2.901C51.203,31.698,56.904,26,63.932,26
+	c3.66,0,6.969,1.545,9.289,4.02c2.9-0.571,5.623-1.63,8.082-3.089c-0.949,2.972-2.969,5.467-5.596,7.041
+	c2.574-0.308,5.027-0.992,7.309-2.004C81.311,34.52,79.152,36.762,76.666,38.556z"/>
+</svg>
+</a>
+    <br><br>
+    <div id="footer-copyright">&copy; 2016 Kosuke Shimofuji. All rights reserved.</div>
+  </div>
+</footer>
+
+
+  </body>
+
+</html>

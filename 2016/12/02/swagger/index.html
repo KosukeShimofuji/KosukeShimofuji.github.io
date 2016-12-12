@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Swaggerによるrestful apiの定義</title>
+  <meta name="description" content="go言語を使用してrestfulなapi serverを作成したい。restfulapiの定義はSwaggerで書いた方がいいということをantipopさんに教えてもらったので、やってみる。">
+
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="canonical" href="https://kosukeshimofuji.jp/2016/12/02/swagger/">
+  <link rel="alternate" type="application/rss+xml" title="Kosuke Shimofuji's Home Page" href="https://kosukeshimofuji.jp/feed.xml">
+  <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-80482518-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+
+      <meta property="og:url" content="https://kosukeshimofuji.jp/2016/12/02/swagger/" />
+  
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="Swaggerによるrestful apiの定義 | Kosuke Shimofuji's Home Page" />
+  
+
+
+</head>
+
+
+  <body>
+
+    <header class="site-header">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/">Kosuke Shimofuji's Home Page</a>
+
+    <nav class="site-nav">
+      <a href="#" class="menu-icon">
+        <svg viewBox="0 0 18 15">
+          <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+      </a>
+
+      <div class="trigger">
+        
+          
+          <a class="page-link" href="/about/">About</a>
+          
+        
+          
+        
+          
+        
+          
+          <a class="page-link" href="/links/">Links</a>
+          
+        
+          
+        
+      </div>
+    </nav>
+
+  </div>
+
+</header>
+
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <p class="post-meta">Posted date: <time datetime="2016-12-02T10:00:00+09:00"
+        itemprop="datePublished">2016-12-02 10:00:00 +0900</time></p>
+    <h1 class="post-title" itemprop="name headline">Swaggerによるrestful apiの定義</h1>
+  </header>
+
+  
+    <h2>Table of contents</h2>
+  
+  
+  <div class="post-content" itemprop="articleBody">
+  <ul class="section-nav">
+<li class="toc-entry toc-h1"><a href="#go-swaggerのインストール">go-swaggerのインストール</a></li>
+<li class="toc-entry toc-h1"><a href="#online-editorを使用してswaggerの定義を書いてみる">Online Editorを使用してswaggerの定義を書いてみる</a></li>
+<li class="toc-entry toc-h1"><a href="#swaggerからgo言語のコードを生成する">swaggerからgo言語のコードを生成する</a></li>
+<li class="toc-entry toc-h1"><a href="#restful-api-serverの起動">restful-api-serverの起動</a></li>
+<li class="toc-entry toc-h1"><a href="#api-serverの挙動の調査">api-serverの挙動の調査</a></li>
+<li class="toc-entry toc-h1"><a href="#apiの実装と修正">APIの実装と修正</a></li>
+<li class="toc-entry toc-h1"><a href="#まとめ">まとめ</a></li>
+<li class="toc-entry toc-h1"><a href="#参考文献">参考文献</a></li>
+</ul><p>go言語を使用してrestfulなapi serverを作成したい。restful
+apiの定義はSwaggerで書いた方がいいということをantipopさんに教えてもらったので、やってみる。</p>
+
+<h1 id="go-swagger">
+<a id="go-swaggerのインストール" class="anchor" href="#go-swagger%E3%81%AE%E3%82%A4%E3%83%B3%E3%82%B9%E3%83%88%E3%83%BC%E3%83%AB" aria-hidden="true"><span class="octicon octicon-link"></span></a>go-swaggerのインストール</h1>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ go get -u github.com/go-swagger/go-swagger/cmd/swagger
+$ swagger --help
+Usage:
+  swagger [OPTIONS] &lt;command&gt;
+
+Swagger tries to support you as best as possible when building API's.
+
+It aims to represent the contract of your API with a language agnostic description of your application in json or yaml.
+
+
+Help Options:
+  -h, --help  Show this help message
+
+Available commands:
+  generate  genererate go code
+  init      initialize a spec document
+  serve     serve spec and docs
+  validate  validate the swagger document
+  version   print the version
+</code></pre>
+</div>
+
+<h1 id="online-editorswagger">
+<a id="online-editorを使用してswaggerの定義を書いてみる" class="anchor" href="#online-editor%E3%82%92%E4%BD%BF%E7%94%A8%E3%81%97%E3%81%A6swagger%E3%81%AE%E5%AE%9A%E7%BE%A9%E3%82%92%E6%9B%B8%E3%81%84%E3%81%A6%E3%81%BF%E3%82%8B" aria-hidden="true"><span class="octicon octicon-link"></span></a>Online Editorを使用してswaggerの定義を書いてみる</h1>
+
+<ul>
+  <li><a href="http://editor.swagger.io/#/">Online Editor</a></li>
+</ul>
+
+<p>手始めにすごくシンプルなAPI SERVERを作成したいので、以下のような定義のRestful APIにする。</p>
+
+<ul>
+  <li>サービスに登録されているユーザの一覧を取得する</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>GET : /users/
+    * USER_ID(integer)
+    * USERNAME(strings)
+    * EMAIL(strings)
+</code></pre>
+</div>
+
+<ul>
+  <li>サービスにユーザを登録する</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>POST : /users/
+</code></pre>
+</div>
+
+<ul>
+  <li>サービスに登録されているユーザの値を修正する</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>PATCH : /users/{id}
+</code></pre>
+</div>
+
+<ul>
+  <li>サービスに登録されているユーザを削除する</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>DELETE : /users/{id}
+</code></pre>
+</div>
+
+<p>上記のような設計をswaggerで定義すると大体以下のようになると思う。</p>
+
+<div class="language-yml highlighter-rouge">
+<pre class="highlight"><code><span class="c1"># this is wsk api written by swagger</span>
+<span class="s">swagger</span><span class="pi">:</span> <span class="s1">'</span><span class="s">2.0'</span>
+<span class="s">info</span><span class="pi">:</span>
+  <span class="s">title</span><span class="pi">:</span> <span class="s">WebShKiller API</span>
+  <span class="s">description</span><span class="pi">:</span> <span class="s">Connect WebShKiller client, control and jail</span>
+  <span class="s">version</span><span class="pi">:</span> <span class="s2">"</span><span class="s">1.0.0"</span>
+<span class="c1"># the domain of the service</span>
+<span class="s">host</span><span class="pi">:</span> <span class="s">wsk-control.openstack</span>
+<span class="c1"># array of all schemes that your API supports</span>
+<span class="s">schemes</span><span class="pi">:</span>
+  <span class="pi">-</span> <span class="s">https</span>
+<span class="c1"># will be prefixed to all paths</span>
+<span class="s">basePath</span><span class="pi">:</span> <span class="s">/v1</span>
+<span class="s">produces</span><span class="pi">:</span>
+  <span class="pi">-</span> <span class="s">application/json</span>
+<span class="s">paths</span><span class="pi">:</span>
+  <span class="s">/users</span><span class="pi">:</span>
+    <span class="s">get</span><span class="pi">:</span>
+      <span class="s">summary</span><span class="pi">:</span> <span class="s">get user list</span>
+      <span class="s">description</span><span class="pi">:</span> <span class="pi">|</span>
+        <span class="no">The users endpoint returns user_id, user_name</span>
+      <span class="s">tags</span><span class="pi">:</span>
+        <span class="pi">-</span> <span class="s">User</span>
+      <span class="s">responses</span><span class="pi">:</span>
+        <span class="s">200</span><span class="pi">:</span>
+          <span class="s">description</span><span class="pi">:</span> <span class="s">An array of users</span>
+          <span class="s">schema</span><span class="pi">:</span>
+            <span class="s">type</span><span class="pi">:</span> <span class="s">array</span>
+            <span class="s">items</span><span class="pi">:</span>
+              <span class="s">$ref</span><span class="pi">:</span> <span class="s1">'</span><span class="s">#/definitions/User'</span>
+        <span class="s">default</span><span class="pi">:</span>
+          <span class="s">description</span><span class="pi">:</span> <span class="s">Unexpected error</span>
+          <span class="s">schema</span><span class="pi">:</span>
+            <span class="s">$ref</span><span class="pi">:</span> <span class="s1">'</span><span class="s">#/definitions/Error'</span>
+<span class="err">    </span><span class="s">post</span><span class="pi">:</span>
+      <span class="s">summary</span><span class="pi">:</span> <span class="s">create new user</span>
+      <span class="s">description</span><span class="pi">:</span> <span class="pi">|</span>
+          <span class="no">create new user</span>
+      <span class="s">parameters</span><span class="pi">:</span>
+        <span class="pi">-</span> <span class="s">name</span><span class="pi">:</span> <span class="s">username</span>
+          <span class="s">in</span><span class="pi">:</span> <span class="s">query</span>
+          <span class="s">description</span><span class="pi">:</span> <span class="s">username(string)</span>
+          <span class="s">required</span><span class="pi">:</span> <span class="s">true</span>
+          <span class="s">type</span><span class="pi">:</span> <span class="s">string</span>
+        <span class="pi">-</span> <span class="s">name</span><span class="pi">:</span> <span class="s">email</span>
+          <span class="s">in</span><span class="pi">:</span> <span class="s">query</span>
+          <span class="s">description</span><span class="pi">:</span> <span class="s">email(string)</span>
+          <span class="s">required</span><span class="pi">:</span> <span class="s">true</span>
+          <span class="s">type</span><span class="pi">:</span> <span class="s">string</span>
+      <span class="s">tags</span><span class="pi">:</span>
+        <span class="pi">-</span> <span class="s">User</span>
+      <span class="s">responses</span><span class="pi">:</span>
+        <span class="s">200</span><span class="pi">:</span>
+          <span class="s">description</span><span class="pi">:</span> <span class="s">An array of users</span>
+          <span class="s">schema</span><span class="pi">:</span>
+            <span class="s">type</span><span class="pi">:</span> <span class="s">array</span>
+            <span class="s">items</span><span class="pi">:</span>
+              <span class="s">$ref</span><span class="pi">:</span> <span class="s1">'</span><span class="s">#/definitions/User'</span>
+        <span class="s">default</span><span class="pi">:</span>
+          <span class="s">description</span><span class="pi">:</span> <span class="s">Unexpected error</span>
+          <span class="s">schema</span><span class="pi">:</span>
+            <span class="s">$ref</span><span class="pi">:</span> <span class="s1">'</span><span class="s">#/definitions/Error'</span>
+<span class="err">  </span><span class="s">/users/{user_id}</span><span class="pi">:</span>
+    <span class="s">patch</span><span class="pi">:</span>
+      <span class="s">summary</span><span class="pi">:</span> <span class="s">modify user information</span>
+      <span class="s">description</span><span class="pi">:</span> <span class="pi">|</span>
+          <span class="no">modify user infomation</span>
+      <span class="s">parameters</span><span class="pi">:</span>
+        <span class="pi">-</span> <span class="s">name</span><span class="pi">:</span> <span class="s">user_id</span>
+          <span class="s">in</span><span class="pi">:</span> <span class="s">query</span>
+          <span class="s">description</span><span class="pi">:</span> <span class="s">user_id(number)</span>
+          <span class="s">required</span><span class="pi">:</span> <span class="s">true</span>
+          <span class="s">type</span><span class="pi">:</span> <span class="s">number</span>
+        <span class="pi">-</span> <span class="s">name</span><span class="pi">:</span> <span class="s">username</span>
+          <span class="s">in</span><span class="pi">:</span> <span class="s">query</span>
+          <span class="s">description</span><span class="pi">:</span> <span class="s">username(string)</span>
+          <span class="s">required</span><span class="pi">:</span> <span class="s">true</span>
+          <span class="s">type</span><span class="pi">:</span> <span class="s">string</span>
+        <span class="pi">-</span> <span class="s">name</span><span class="pi">:</span> <span class="s">email</span>
+          <span class="s">in</span><span class="pi">:</span> <span class="s">query</span>
+          <span class="s">description</span><span class="pi">:</span> <span class="s">email(string)</span>
+          <span class="s">required</span><span class="pi">:</span> <span class="s">true</span>
+          <span class="s">type</span><span class="pi">:</span> <span class="s">string</span>
+      <span class="s">tags</span><span class="pi">:</span>
+        <span class="pi">-</span> <span class="s">User</span>
+      <span class="s">responses</span><span class="pi">:</span>
+        <span class="s">200</span><span class="pi">:</span>
+          <span class="s">description</span><span class="pi">:</span> <span class="s">An array of users</span>
+          <span class="s">schema</span><span class="pi">:</span>
+            <span class="s">type</span><span class="pi">:</span> <span class="s">array</span>
+            <span class="s">items</span><span class="pi">:</span>
+              <span class="s">$ref</span><span class="pi">:</span> <span class="s1">'</span><span class="s">#/definitions/User'</span>
+        <span class="s">default</span><span class="pi">:</span>
+          <span class="s">description</span><span class="pi">:</span> <span class="s">Unexpected error</span>
+          <span class="s">schema</span><span class="pi">:</span>
+            <span class="s">$ref</span><span class="pi">:</span> <span class="s1">'</span><span class="s">#/definitions/Error'</span>
+<span class="err">    </span><span class="s">delete</span><span class="pi">:</span>
+      <span class="s">summary</span><span class="pi">:</span> <span class="s">delete user</span>
+      <span class="s">description</span><span class="pi">:</span> <span class="pi">|</span>
+          <span class="no">delete user</span>
+      <span class="s">parameters</span><span class="pi">:</span>
+        <span class="pi">-</span> <span class="s">name</span><span class="pi">:</span> <span class="s">user_id</span>
+          <span class="s">in</span><span class="pi">:</span> <span class="s">query</span>
+          <span class="s">description</span><span class="pi">:</span> <span class="s">user_id(number)</span>
+          <span class="s">required</span><span class="pi">:</span> <span class="s">true</span>
+          <span class="s">type</span><span class="pi">:</span> <span class="s">number</span>
+      <span class="s">tags</span><span class="pi">:</span>
+        <span class="pi">-</span> <span class="s">User</span>
+      <span class="s">responses</span><span class="pi">:</span>
+        <span class="s">200</span><span class="pi">:</span>
+          <span class="s">description</span><span class="pi">:</span> <span class="s">An array of users</span>
+          <span class="s">schema</span><span class="pi">:</span>
+            <span class="s">type</span><span class="pi">:</span> <span class="s">array</span>
+            <span class="s">items</span><span class="pi">:</span>
+              <span class="s">$ref</span><span class="pi">:</span> <span class="s1">'</span><span class="s">#/definitions/User'</span>
+        <span class="s">default</span><span class="pi">:</span>
+          <span class="s">description</span><span class="pi">:</span> <span class="s">Unexpected error</span>
+          <span class="s">schema</span><span class="pi">:</span>
+            <span class="s">$ref</span><span class="pi">:</span> <span class="s1">'</span><span class="s">#/definitions/Error'</span>
+<span class="s">definitions</span><span class="pi">:</span>
+  <span class="s">User</span><span class="pi">:</span>
+    <span class="s">type</span><span class="pi">:</span> <span class="s">object</span>
+    <span class="s">properties</span><span class="pi">:</span>
+      <span class="s">user_id</span><span class="pi">:</span>
+        <span class="s">type</span><span class="pi">:</span> <span class="s">string</span>
+        <span class="s">description</span><span class="pi">:</span> <span class="s">Unique identifier representing a specific user.</span>
+      <span class="s">username</span><span class="pi">:</span>
+        <span class="s">type</span><span class="pi">:</span> <span class="s">string</span>
+        <span class="s">description</span><span class="pi">:</span> <span class="s">Username</span>
+      <span class="s">email</span><span class="pi">:</span>
+        <span class="s">type</span><span class="pi">:</span> <span class="s">string</span>
+        <span class="s">description</span><span class="pi">:</span> <span class="s">Username</span>
+  <span class="s">Error</span><span class="pi">:</span>
+    <span class="s">type</span><span class="pi">:</span> <span class="s">object</span>
+    <span class="s">properties</span><span class="pi">:</span>
+      <span class="s">code</span><span class="pi">:</span>
+        <span class="s">type</span><span class="pi">:</span> <span class="s">integer</span>
+        <span class="s">format</span><span class="pi">:</span> <span class="s">int32</span>
+      <span class="s">message</span><span class="pi">:</span>
+        <span class="s">type</span><span class="pi">:</span> <span class="s">string</span>
+      <span class="s">fields</span><span class="pi">:</span>
+        <span class="s">type</span><span class="pi">:</span> <span class="s">string</span>
+</code></pre>
+</div>
+
+<p>適宜、ymlファイルを<a href="http://editor.swagger.io/#/">ONLINE
+EDITOR</a>や<a href="http://petstore.swagger.io/">swagger-ui</a>に入力して、定義に問題がないかを確認する。もしくはgo-swaggerでswaggerの定義が正しいのかを確認することもできる。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ swagger validate _swagger.yml
+The swagger spec at "_swagger.yml" is valid against swagger specification 2.0
+</code></pre>
+</div>
+
+<h1 id="swaggergo">
+<a id="swaggerからgo言語のコードを生成する" class="anchor" href="#swagger%E3%81%8B%E3%82%89go%E8%A8%80%E8%AA%9E%E3%81%AE%E3%82%B3%E3%83%BC%E3%83%89%E3%82%92%E7%94%9F%E6%88%90%E3%81%99%E3%82%8B" aria-hidden="true"><span class="octicon octicon-link"></span></a>swaggerからgo言語のコードを生成する</h1>
+
+<p>swagger generateのAオプションはpackage名に関わるために重要である。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ mkdir -p $GOPATH/src/github.com/KosukeShimofuji/wskapi/
+$ cd $GOPATH/src/github.com/KosukeShimofuji/wskapi/
+$ swagger generate server -f https://raw.githubusercontent.com/KosukeShimofuji/WebSHKiller/master/_swagger.yml -A wskapi
+$ swagger generate client -f https://raw.githubusercontent.com/KosukeShimofuji/WebSHKiller/master/_swagger.yml -A wskapi
+$ tree
+.
+├── client
+│   ├── user
+│   │   ├── delete_users_user_id_parameters.go
+│   │   ├── delete_users_user_id_responses.go
+│   │   ├── get_users_parameters.go
+│   │   ├── get_users_responses.go
+│   │   ├── patch_users_user_id_parameters.go
+│   │   ├── patch_users_user_id_responses.go
+│   │   ├── post_users_parameters.go
+│   │   ├── post_users_responses.go
+│   │   └── user_client.go
+│   └── web_sh_killer_client.go
+├── cmd
+│   └── web-sh-killer-server
+│       └── main.go
+├── models
+│   ├── error.go
+│   └── user.go
+└── restapi
+    ├── configure_web_sh_killer.go
+    ├── doc.go
+    ├── embedded_spec.go
+    ├── operations
+    │   ├── user
+    │   │   ├── delete_users_user_id.go
+    │   │   ├── delete_users_user_id_parameters.go
+    │   │   ├── delete_users_user_id_responses.go
+    │   │   ├── delete_users_user_id_urlbuilder.go
+    │   │   ├── get_users.go
+    │   │   ├── get_users_parameters.go
+    │   │   ├── get_users_responses.go
+    │   │   ├── get_users_urlbuilder.go
+    │   │   ├── patch_users_user_id.go
+    │   │   ├── patch_users_user_id_parameters.go
+    │   │   ├── patch_users_user_id_responses.go
+    │   │   ├── patch_users_user_id_urlbuilder.go
+    │   │   ├── post_users.go
+    │   │   ├── post_users_parameters.go
+    │   │   ├── post_users_responses.go
+    │   │   └── post_users_urlbuilder.go
+    │   └── web_sh_killer_api.go
+    └── server.go
+
+8 directories, 34 files
+</code></pre>
+</div>
+
+<h1 id="restful-api-server">
+<a id="restful-api-serverの起動" class="anchor" href="#restful-api-server%E3%81%AE%E8%B5%B7%E5%8B%95" aria-hidden="true"><span class="octicon octicon-link"></span></a>restful-api-serverの起動</h1>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ go install github.com/KosukeShimofuji/wskapi/cmd/wskapi-server/
+$ web-sh-killer-server 
+2016/12/02 14:33:19 the required flags `--tls-certificate` and `--tls-key` were not specified
+$ wskapi-server -h
+Usage:
+  wskapi-server [OPTIONS]
+
+Connect WebShKiller client, control and jail
+
+Application Options:
+      --scheme=            the listeners to enable, this can be repeated and defaults to the schemes in the swagger spec
+      --cleanup-timeout=   grace period for which to wait before shutting down the server (default: 10s)
+      --max-header-size=   controls the maximum number of bytes the server will read parsing the request header's keys and values, including the request line. It does not limit the size of the request body. (default: 1MiB)
+      --socket-path=       the unix socket to listen on (default: /var/run/wskapi.sock)
+      --host=              the IP to listen on (default: localhost) [$HOST]
+      --port=              the port to listen on for insecure connections, defaults to a random value [$PORT]
+      --listen-limit=      limit the number of outstanding requests
+      --keep-alive=        sets the TCP keep-alive timeouts on accepted connections. It prunes dead TCP connections ( e.g. closing laptop mid-download) (default: 3m)
+      --read-timeout=      maximum duration before timing out read of the request (default: 30s)
+      --write-timeout=     maximum duration before timing out write of the response (default: 60s)
+      --tls-host=          the IP to listen on for tls, when not specified it's the same as --host [$TLS_HOST]
+      --tls-port=          the port to listen on for secure connections, defaults to a random value [$TLS_PORT]
+      --tls-certificate=   the certificate to use for secure connections [$TLS_CERTIFICATE]
+      --tls-key=           the private key to use for secure conections [$TLS_PRIVATE_KEY]
+      --tls-listen-limit=  limit the number of outstanding requests
+      --tls-keep-alive=    sets the TCP keep-alive timeouts on accepted connections. It prunes dead TCP connections ( e.g. closing laptop mid-download)
+      --tls-read-timeout=  maximum duration before timing out read of the request
+      --tls-write-timeout= maximum duration before timing out write of the response
+
+Help Options:
+  -h, --help               Show this help message
+</code></pre>
+</div>
+
+<p>証明書と鍵が必要みたいなので、自己証明書と鍵を作成して食わせる。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ openssl req -new -x509 -nodes -days 365 -out wsk.crt -keyout wsk.key
+$ wskapi-server --tls-certificate=./wsk.crt --tls-key=./wsk.key
+2016/12/02 16:17:29 Serving wskapi at https://127.0.0.1:44176
+</code></pre>
+</div>
+
+<h1 id="api-server">
+<a id="api-serverの挙動の調査" class="anchor" href="#api-server%E3%81%AE%E6%8C%99%E5%8B%95%E3%81%AE%E8%AA%BF%E6%9F%BB" aria-hidden="true"><span class="octicon octicon-link"></span></a>api-serverの挙動の調査</h1>
+
+<p>コードを実装したばかりの段階ではもちろん、データを得ることも、データを追加することもできない。</p>
+
+<ul>
+  <li>ユーザデータ取得</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ curl -i --insecure https://127.0.0.1:55617/v1/users
+HTTP/1.1 501 Not Implemented
+Content-Type: application/json
+Date: Fri, 02 Dec 2016 07:59:18 GMT
+Content-Length: 55
+
+"operation user.GetUsers has not yet been implemented"
+</code></pre>
+</div>
+
+<ul>
+  <li>ユーザ追加</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ curl -i --insecure -X POST https://127.0.0.1:55617/v1/users
+HTTP/1.1 422 Unprocessable Entity
+Content-Type: application/json
+Date: Fri, 02 Dec 2016 08:04:00 GMT
+Content-Length: 51
+
+{"code":602,"message":"email in query is required"}
+
+$ curl -i --insecure -X POST -d "email=hogehoge@hoge.org" -d "username=hogehoge" https://127.0.0.1:55617/v1/users
+HTTP/1.1 500 Internal Server Error
+Content-Type: application/json
+Date: Fri, 02 Dec 2016 08:06:07 GMT
+Content-Length: 85
+
+{"code":500,"message":"no consumer registered for application/x-www-form-urlencoded"}
+</code></pre>
+</div>
+
+<ul>
+  <li>ユーザ削除</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ curl -i --insecure -X DELETE https://127.0.0.1:55617/v1/users/1
+HTTP/1.1 501 Not Implemented
+Content-Type: application/json
+Date: Fri, 02 Dec 2016 08:07:39 GMT
+Content-Length: 60
+
+"operation user.DeleteUsersID has not yet been implemented"
+</code></pre>
+</div>
+
+<h1 id="api">
+<a id="apiの実装と修正" class="anchor" href="#api%E3%81%AE%E5%AE%9F%E8%A3%85%E3%81%A8%E4%BF%AE%E6%AD%A3" aria-hidden="true"><span class="octicon octicon-link"></span></a>APIの実装と修正</h1>
+
+<p>基本的にconfigureAPI関数を修正することで、APIの挙動を変更することができるようだ。</p>
+
+<div class="language-go highlighter-rouge">
+<pre class="highlight"><code><span class="k">package</span><span class="x"> </span><span class="n">restapi</span><span class="x">
+
+</span><span class="k">import</span><span class="x"> </span><span class="p">(</span><span class="x">
+        </span><span class="s">"crypto/tls"</span><span class="x">
+        </span><span class="s">"net/http"</span><span class="x">
+
+        </span><span class="n">errors</span><span class="x"> </span><span class="s">"github.com/go-openapi/errors"</span><span class="x">
+        </span><span class="n">runtime</span><span class="x"> </span><span class="s">"github.com/go-openapi/runtime"</span><span class="x">
+        </span><span class="n">middleware</span><span class="x"> </span><span class="s">"github.com/go-openapi/runtime/middleware"</span><span class="x">
+
+        </span><span class="s">"github.com/KosukeShimofuji/wskapi/restapi/operations"</span><span class="x">
+        </span><span class="s">"github.com/KosukeShimofuji/wskapi/restapi/operations/user"</span><span class="x">
+</span><span class="p">)</span><span class="x">
+
+</span><span class="c">// This file is safe to edit. Once it exists it will not be overwritten</span><span class="x">
+
+</span><span class="c">//go:generate swagger generate server --target .. --name wskapi --spec https://raw.githubusercontent.com/KosukeShimofuji/WebSHKiller/master/_swagger.yml</span><span class="x">
+
+</span><span class="k">func</span><span class="x"> </span><span class="n">configureFlags</span><span class="p">(</span><span class="n">api</span><span class="x"> </span><span class="o">*</span><span class="n">operations</span><span class="o">.</span><span class="n">WskapiAPI</span><span class="p">)</span><span class="x"> </span><span class="p">{</span><span class="x">
+        </span><span class="c">// api.CommandLineOptionsGroups = []swag.CommandLineOptionsGroup{ ... }</span><span class="x">
+</span><span class="p">}</span><span class="x">
+
+</span><span class="k">func</span><span class="x"> </span><span class="n">configureAPI</span><span class="p">(</span><span class="n">api</span><span class="x"> </span><span class="o">*</span><span class="n">operations</span><span class="o">.</span><span class="n">WskapiAPI</span><span class="p">)</span><span class="x"> </span><span class="n">http</span><span class="o">.</span><span class="n">Handler</span><span class="x"> </span><span class="p">{</span><span class="x">
+        </span><span class="c">// configure the api here</span><span class="x">
+        </span><span class="n">api</span><span class="o">.</span><span class="n">ServeError</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="n">errors</span><span class="o">.</span><span class="n">ServeError</span><span class="x">
+
+        </span><span class="c">// Set your custom logger if needed. Default one is log.Printf</span><span class="x">
+        </span><span class="c">// Expected interface func(string, ...interface{})</span><span class="x">
+        </span><span class="c">//</span><span class="x">
+        </span><span class="c">// Example:</span><span class="x">
+        </span><span class="c">// s.api.Logger = log.Printf</span><span class="x">
+
+        </span><span class="n">api</span><span class="o">.</span><span class="n">JSONConsumer</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="n">runtime</span><span class="o">.</span><span class="n">JSONConsumer</span><span class="p">()</span><span class="x">
+
+        </span><span class="n">api</span><span class="o">.</span><span class="n">JSONProducer</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="n">runtime</span><span class="o">.</span><span class="n">JSONProducer</span><span class="p">()</span><span class="x">
+
+        </span><span class="n">api</span><span class="o">.</span><span class="n">UserDeleteUsersIDHandler</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="n">user</span><span class="o">.</span><span class="n">DeleteUsersIDHandlerFunc</span><span class="p">(</span><span class="k">func</span><span class="p">(</span><span class="n">params</span><span class="x"> </span><span class="n">user</span><span class="o">.</span><span class="n">DeleteUsersIDParams</span><span class="p">)</span><span class="x"> </span><span class="n">middleware</span><span class="o">.</span><span class="n">Responder</span><span class="x"> </span><span class="p">{</span><span class="x">
+                </span><span class="k">return</span><span class="x"> </span><span class="n">middleware</span><span class="o">.</span><span class="n">NotImplemented</span><span class="p">(</span><span class="s">"operation user.DeleteUsersID has not yet been implemented"</span><span class="p">)</span><span class="x">
+        </span><span class="p">})</span><span class="x">
+        </span><span class="n">api</span><span class="o">.</span><span class="n">UserGetUsersHandler</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="n">user</span><span class="o">.</span><span class="n">GetUsersHandlerFunc</span><span class="p">(</span><span class="k">func</span><span class="p">(</span><span class="n">params</span><span class="x"> </span><span class="n">user</span><span class="o">.</span><span class="n">GetUsersParams</span><span class="p">)</span><span class="x"> </span><span class="n">middleware</span><span class="o">.</span><span class="n">Responder</span><span class="x"> </span><span class="p">{</span><span class="x">
+                </span><span class="k">return</span><span class="x"> </span><span class="n">middleware</span><span class="o">.</span><span class="n">NotImplemented</span><span class="p">(</span><span class="s">"operation user.GetUsers has not yet been implemented"</span><span class="p">)</span><span class="x">
+        </span><span class="p">})</span><span class="x">
+        </span><span class="n">api</span><span class="o">.</span><span class="n">UserPatchUsersIDHandler</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="n">user</span><span class="o">.</span><span class="n">PatchUsersIDHandlerFunc</span><span class="p">(</span><span class="k">func</span><span class="p">(</span><span class="n">params</span><span class="x"> </span><span class="n">user</span><span class="o">.</span><span class="n">PatchUsersIDParams</span><span class="p">)</span><span class="x"> </span><span class="n">middleware</span><span class="o">.</span><span class="n">Responder</span><span class="x"> </span><span class="p">{</span><span class="x">
+                </span><span class="k">return</span><span class="x"> </span><span class="n">middleware</span><span class="o">.</span><span class="n">NotImplemented</span><span class="p">(</span><span class="s">"operation user.PatchUsersID has not yet been implemented"</span><span class="p">)</span><span class="x">
+        </span><span class="p">})</span><span class="x">
+        </span><span class="n">api</span><span class="o">.</span><span class="n">UserPostUsersHandler</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="n">user</span><span class="o">.</span><span class="n">PostUsersHandlerFunc</span><span class="p">(</span><span class="k">func</span><span class="p">(</span><span class="n">params</span><span class="x"> </span><span class="n">user</span><span class="o">.</span><span class="n">PostUsersParams</span><span class="p">)</span><span class="x"> </span><span class="n">middleware</span><span class="o">.</span><span class="n">Responder</span><span class="x"> </span><span class="p">{</span><span class="x">
+                </span><span class="k">return</span><span class="x"> </span><span class="n">middleware</span><span class="o">.</span><span class="n">NotImplemented</span><span class="p">(</span><span class="s">"operation user.PostUsers has not yet been implemented"</span><span class="p">)</span><span class="x">
+        </span><span class="p">})</span><span class="x">
+
+        </span><span class="n">api</span><span class="o">.</span><span class="n">ServerShutdown</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="k">func</span><span class="p">()</span><span class="x"> </span><span class="p">{}</span><span class="x">
+
+        </span><span class="k">return</span><span class="x"> </span><span class="n">setupGlobalMiddleware</span><span class="p">(</span><span class="n">api</span><span class="o">.</span><span class="n">Serve</span><span class="p">(</span><span class="n">setupMiddlewares</span><span class="p">))</span><span class="x">
+</span><span class="p">}</span><span class="x">
+
+</span><span class="c">// The TLS configuration before HTTPS server starts.</span><span class="x">
+</span><span class="k">func</span><span class="x"> </span><span class="n">configureTLS</span><span class="p">(</span><span class="n">tlsConfig</span><span class="x"> </span><span class="o">*</span><span class="n">tls</span><span class="o">.</span><span class="n">Config</span><span class="p">)</span><span class="x"> </span><span class="p">{</span><span class="x">
+        </span><span class="c">// Make all necessary changes to the TLS configuration here.</span><span class="x">
+</span><span class="p">}</span><span class="x">
+
+</span><span class="c">// The middleware configuration is for the handler executors. These do not apply to the swagger.json document.</span><span class="x">
+</span><span class="c">// The middleware executes after routing but before authentication, binding and validation</span><span class="x">
+</span><span class="k">func</span><span class="x"> </span><span class="n">setupMiddlewares</span><span class="p">(</span><span class="n">handler</span><span class="x"> </span><span class="n">http</span><span class="o">.</span><span class="n">Handler</span><span class="p">)</span><span class="x"> </span><span class="n">http</span><span class="o">.</span><span class="n">Handler</span><span class="x"> </span><span class="p">{</span><span class="x">
+        </span><span class="k">return</span><span class="x"> </span><span class="n">handler</span><span class="x">
+</span><span class="p">}</span><span class="x">
+
+</span><span class="c">// The middleware configuration happens before anything, this middleware also applies to serving the swagger.json document.</span><span class="x">
+</span><span class="c">// So this is a good place to plug in a panic handling middleware, logging and metrics</span><span class="x">
+</span><span class="k">func</span><span class="x"> </span><span class="n">setupGlobalMiddleware</span><span class="p">(</span><span class="n">handler</span><span class="x"> </span><span class="n">http</span><span class="o">.</span><span class="n">Handler</span><span class="p">)</span><span class="x"> </span><span class="n">http</span><span class="o">.</span><span class="n">Handler</span><span class="x"> </span><span class="p">{</span><span class="x">
+        </span><span class="k">return</span><span class="x"> </span><span class="n">handler</span><span class="x">
+</span><span class="p">}</span><span class="x">
+</span></code></pre>
+</div>
+
+<h1 id="section">
+<a id="まとめ" class="anchor" href="#%E3%81%BE%E3%81%A8%E3%82%81" aria-hidden="true"><span class="octicon octicon-link"></span></a>まとめ</h1>
+
+<p>しっかりしたWeb ApplicationにRestful APIを組み込みたいなら、<a href="https://revel.github.io/">revel</a>や<a href="https://gin-gonic.github.io/gin/">gin</a>の方が良さそうだけど、さくっとrestful api対応の小さなアプリケーションを作りたいなら、go-swaggerのコード生成機能は手軽に使えそうな印象。
+modelをdatabaseに対応させるにはAPIに対応する関数に、ORマッパ使ったりして結構コードを書かないといけなさそう。</p>
+
+<h1 id="section-1">
+<a id="参考文献" class="anchor" href="#%E5%8F%82%E8%80%83%E6%96%87%E7%8C%AE" aria-hidden="true"><span class="octicon octicon-link"></span></a>参考文献</h1>
+
+<ul>
+  <li>http://qiita.com/tags/swagger</li>
+  <li>http://qiita.com/magaya0403/items/0419d84d8df7784ac465</li>
+  <li>http://qiita.com/y_matsuwitter/items/3a847c22bbb84d9dff98</li>
+  <li>https://godoc.org/github.com/go-swagger/go-swagger</li>
+  <li>https://aaronsaray.com/2016/using-json-patch-in-swagger.html</li>
+  <li>https://goswagger.io/</li>
+  <li>https://github.com/go-swagger/go-swagger/tree/master/examples</li>
+  <li>http://blog.narenarya.in/build-rest-api-go-mysql.html</li>
+  <li>https://revel.github.io/</li>
+  <li>https://gin-gonic.github.io/gin/</li>
+</ul>
+
+
+  </div>
+
+  <style type="text/css">
+<!--
+/*** sahre button settings ***/
+
+/* adjusting twitter share button */
+ul.share-buttons{
+  margin : 0;
+  list-style: none;
+  padding: 0;
+}
+
+ul.share-buttons li{
+  display: inline;
+}
+
+/* adjusting facebook share button */
+.fb_iframe_widget > span {
+  vertical-align: baseline !important;
+}
+
+/* adjusting google share button */
+#___plusone_0{ width:72px !important; }
+.___plusone_0 > span {
+  vertical-align: baseline !important;
+}
+
+/* adjusting pocket share button */
+.pocket-btn {
+    display: inline;
+}
+-->
+</style>
+
+<!-- twitter share script -->
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+<!-- hatena share script -->
+<script type="text/javascript" src="https://b.st-hatena.com/js/bookmark_button.js" charset="utf-8" async="async"></script>
+
+<!-- facebook sahre script -->
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/ja_JP/sdk.js#xfbml=1&version=v2.6";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<!-- google sahre script -->
+<script src="https://apis.google.com/js/platform.js" async defer>
+ang: 'ja'}
+</script>
+
+<script type="text/javascript">!function(d,i){if(!d.getElementById(i)){var j=d.createElement("script");j.id=i;j.src="https://widgets.getpocket.com/v1/j/btn.js?v=1";var w=d.getElementById(i);d.body.appendChild(j);}}(document,"pocket-btn-js");</script>
+
+<ul class="share-buttons" >
+    <li>
+        <!-- twitter share button -->
+    <a href="https://twitter.com/share"
+       class="twitter-share-button"
+       data-url="https://kosukeshimofuji.jp/2016/12/02/swagger/"
+       data-text="Swaggerによるrestful apiの定義 | Kosuke Shimofuji's Home Page" >Tweet</a>
+    </li>
+    <li>
+        <!-- facebook share button -->
+        <div class="fb-share-button"
+             data-href="https://kosukeshimofuji.jp/2016/12/02/swagger/"
+             data-layout="button_count"></div>
+    </li>
+    <li>
+        <!-- hatena share button -->
+        <a href="http://b.hatena.ne.jp/entry/https://kosukeshimofuji.jp/2016/12/02/swagger/"
+           class="hatena-bookmark-button"
+           data-hatena-bookmark-layout="simple-balloon"
+           data-hatena-bookmark-title="Swaggerによるrestful apiの定義 | Kosuke Shimofuji's Home Page"
+           data-hatena-bookmark-lang="ja"
+           title="Share on Hatena">
+            <img src="https://b.st-hatena.com/images/entry-button/button-only@2x.png"
+                 alt="Share on Hatena" width="20" height="20" style="border: none;" />
+        </a>
+    </li>
+    <li>
+        <!-- google share button -->
+        <div class="g-plusone"
+             data-href="https://kosukeshimofuji.jp/2016/12/02/swagger/"></div>
+    </li>
+    <li>
+        <!-- pocket share button -->
+        <a data-pocket-label="pocket" data-pocket-count="horizontal" class="pocket-btn" data-lang="en"></a>
+    </li>
+</ul>
+
+
+  <br>
+  <div id="disqus_thread"></div>
+<script>
+    /**
+     *  RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
+     *  LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables
+     */
+    /*
+    var disqus_config = function () {
+        this.page.url = PAGE_URL;  // Replace PAGE_URL with your page's canonical URL variable
+        this.page.identifier = PAGE_IDENTIFIER; // Replace PAGE_IDENTIFIER with your page's unique identifier variable
+    };
+    */
+    (function() {  // DON'T EDIT BELOW THIS LINE
+        var d = document, s = d.createElement('script');
+        
+        s.src = '//kosukesimofuji-hp.disqus.com/embed.js';
+        
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+
+</article>
+
+      </div>
+    </div>
+
+    <footer class="site-footer">
+  <div class="site-footer-wrapper">
+    <div id="footer-description">Think about cyber warfare, business warfare.
+</div>
+    <br>
+    <a href="mailto:kosuke.shimofuji@gmail.com"><?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 17.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1 Tiny//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11-tiny.dtd">
+<svg version="1.1" baseProfile="tiny" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+	 x="0px" y="0px" width="30px" height="30px" viewBox="0 0 100 100" overflow="scroll" xml:space="preserve">
+<path fill="#231F20" d="M50,0C22.386,0,0,22.386,0,50s22.386,50,50,50s50-22.386,50-50S77.614,0,50,0z M19.188,72.951V72.85
+	l24.708-23.145l6.103,5.597l5.967-5.472l24.682,23.121H19.188z M80.81,70.861l-23.635-22.14L80.81,27.048L49.999,50L19.188,27.048
+	l23.499,21.547L19.188,70.609V27.048H80.81V70.861z"/>
+</svg>
+</a>
+    <a href="/feed.xml"><?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 17.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1 Tiny//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11-tiny.dtd">
+<svg version="1.1" baseProfile="tiny" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+	 x="0px" y="0px" width="30px" height="30px" viewBox="0 0 100 100" overflow="visible" xml:space="preserve">
+<path fill="#231F20" d="M50,0C22.386,0,0,22.386,0,50s22.386,50,50,50s50-22.386,50-50S77.614,0,50,0z M35.379,70.782h-0.02
+	c-3.111,0-5.646-2.531-5.658-5.641c-0.002-3.119,2.529-5.668,5.646-5.68c3.133,0,5.669,2.529,5.673,5.641
+	C41.03,68.221,38.502,70.768,35.379,70.782z M51.874,70.718c-0.401-11.855-9.782-20.759-22.214-21.064l-0.02-7.672
+	c16.59,0.357,29.486,12.781,29.916,28.711L51.874,70.718z M67.979,70.658c-0.446-20.681-17.11-36.818-38.362-37.105l-0.021-7.674
+	C55.152,26.154,75.201,45.65,75.66,70.625L67.979,70.658z"/>
+</svg>
+</a>
+    <a href="https://github.com/KosukeShimofuji"><?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 17.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1 Tiny//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11-tiny.dtd">
+<svg version="1.1" baseProfile="tiny" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+	 x="0px" y="0px" width="30px" height="30px" viewBox="0 0 100 100" xml:space="preserve">
+<path fill="#231F20" d="M50.141,61.976c3.769,0,6.824,1.903,6.824,4.251s-3.055,4.251-6.824,4.251s-6.824-1.903-6.824-4.251
+	S46.372,61.976,50.141,61.976z M49.23,29.299c2.584,0,4.678,2.632,4.678,5.878s-2.094,5.878-4.678,5.878s-4.678-2.632-4.678-5.878
+	S46.646,29.299,49.23,29.299z M50,0C22.386,0,0,22.386,0,50s22.386,50,50,50s50-22.386,50-50S77.614,0,50,0z M62.501,35.182
+	c0,7.247-5.84,13.135-13.098,13.278c-1.916,3.813-0.003,5.578,1.468,6.328c0,0,0.298,0.151,0.95,0.388
+	c0.239,0.076,0.391,0.107,0.391,0.107s-0.002,0.011-0.003,0.03c0.457,0.155,1.04,0.338,1.76,0.534
+	c0.876,0.146,1.723,0.347,2.533,0.601c0.003,0,0.008,0.002,0.013,0.003c0,0,0.013,0.003,0.017,0.006
+	c1.336,0.421,2.569,0.983,3.664,1.659c0.451,0.259,0.86,0.529,1.16,0.798l0.002,0.002c2.335,1.799,3.819,4.205,3.981,6.916
+	c0.364,6.147-6.211,11.533-14.684,12.029C42.18,78.357,35.016,73.777,34.65,67.63c-0.257-4.348,2.959-8.313,7.859-10.438
+	c-5.216-4.507-2.277-8.819-0.432-10.731c-3.786-2.345-6.308-6.519-6.308-11.279c0-7.337,5.984-13.284,13.365-13.284
+	c2.213,0,4.297,0.537,6.134,1.483c0,0,3.796,1.554,10.098-1.483v8.16h0.002c0,0-1.893,0.859-3.395,1.421
+	C62.314,32.655,62.501,33.897,62.501,35.182z"/>
+</svg>
+
+</a>
+    <a href="https://twitter.com/KosukeShimofuji"><?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 17.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1 Tiny//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11-tiny.dtd">
+<svg version="1.1" baseProfile="tiny" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+	 x="0px" y="0px" width="30px" height="30px" viewBox="0 0 100 100" xml:space="preserve">
+<path fill="#231F20" d="M50,0C22.386,0,0,22.386,0,50s22.386,50,50,50s50-22.386,50-50S77.614,0,50,0z M76.666,38.556
+	c0.023,0.547,0.037,1.096,0.037,1.646c0,16.818-12.801,36.211-36.211,36.211c-7.188,0-13.877-2.106-19.51-5.717
+	c0.996,0.116,2.01,0.177,3.037,0.177c5.963,0,11.449-2.034,15.807-5.448c-5.57-0.102-10.271-3.782-11.891-8.838
+	c0.777,0.148,1.574,0.229,2.395,0.229c1.162,0,2.285-0.156,3.354-0.447C27.862,55.2,23.475,50.056,23.475,43.89
+	c0-0.053,0-0.106,0-0.16c1.717,0.954,3.68,1.526,5.766,1.593c-3.416-2.282-5.662-6.178-5.662-10.594c0-2.332,0.627-4.52,1.723-6.398
+	c6.277,7.699,15.656,12.768,26.234,13.299c-0.219-0.933-0.332-1.904-0.332-2.901C51.203,31.698,56.904,26,63.932,26
+	c3.66,0,6.969,1.545,9.289,4.02c2.9-0.571,5.623-1.63,8.082-3.089c-0.949,2.972-2.969,5.467-5.596,7.041
+	c2.574-0.308,5.027-0.992,7.309-2.004C81.311,34.52,79.152,36.762,76.666,38.556z"/>
+</svg>
+</a>
+    <br><br>
+    <div id="footer-copyright">&copy; 2016 Kosuke Shimofuji. All rights reserved.</div>
+  </div>
+</footer>
+
+
+  </body>
+
+</html>

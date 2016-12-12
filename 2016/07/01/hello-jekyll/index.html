@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>JekyllではじめるBLOG</title>
+  <meta name="description" content="jekyll - 静的サイトジェネレータ">
+
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="canonical" href="https://kosukeshimofuji.jp/2016/07/01/hello-jekyll/">
+  <link rel="alternate" type="application/rss+xml" title="Kosuke Shimofuji's Home Page" href="https://kosukeshimofuji.jp/feed.xml">
+  <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-80482518-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+
+      <meta property="og:url" content="https://kosukeshimofuji.jp/2016/07/01/hello-jekyll/" />
+  
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="JekyllではじめるBLOG | Kosuke Shimofuji's Home Page" />
+  
+
+
+</head>
+
+
+  <body>
+
+    <header class="site-header">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/">Kosuke Shimofuji's Home Page</a>
+
+    <nav class="site-nav">
+      <a href="#" class="menu-icon">
+        <svg viewBox="0 0 18 15">
+          <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+      </a>
+
+      <div class="trigger">
+        
+          
+          <a class="page-link" href="/about/">About</a>
+          
+        
+          
+        
+          
+        
+          
+          <a class="page-link" href="/links/">Links</a>
+          
+        
+          
+        
+      </div>
+    </nav>
+
+  </div>
+
+</header>
+
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <p class="post-meta">Posted date: <time datetime="2016-07-01T00:00:00+09:00"
+        itemprop="datePublished">2016-07-01 00:00:00 +0900</time></p>
+    <h1 class="post-title" itemprop="name headline">JekyllではじめるBLOG</h1>
+  </header>
+
+  
+    <h2>Table of contents</h2>
+  
+  
+  <div class="post-content" itemprop="articleBody">
+  <ul class="section-nav">
+<li class="toc-entry toc-h1"><a href="#jekyll---静的サイトジェネレータ">jekyll - 静的サイトジェネレータ</a></li>
+<li class="toc-entry toc-h1"><a href="#github-pageにjekyllで生成したhtmlを公開する">Github pageにJekyllで生成したHTMLを公開する</a></li>
+<li class="toc-entry toc-h1"><a href="#初期のjekyllの構成を抑えておく">初期のjekyllの構成を抑えておく</a></li>
+<li class="toc-entry toc-h1"><a href="#draftsを追加する">draftsを追加する</a></li>
+<li class="toc-entry toc-h1"><a href="#syntax-highlightを変更する">syntax highlightを変更する</a></li>
+<li class="toc-entry toc-h2"><a href="#ogpの設定">OGPの設定</a></li>
+<li class="toc-entry toc-h1"><a href="#シェアボタンを追加する">シェアボタンを追加する</a></li>
+<li class="toc-entry toc-h1"><a href="#tocを追加する">TOCを追加する</a></li>
+<li class="toc-entry toc-h1"><a href="#ローカルで生成したファイルをgithub-pageに公開する運用に変更する">ローカルで生成したファイルをgithub pageに公開する運用に変更する</a></li>
+<li class="toc-entry toc-h1"><a href="#カスタムドメインを設定する">カスタムドメインを設定する。</a></li>
+<li class="toc-entry toc-h1"><a href="#tlsで接続できるようにする">TLSで接続できるようにする</a></li>
+<li class="toc-entry toc-h1"><a href="#page-rules">Page Rules</a></li>
+<li class="toc-entry toc-h1"><a href="#hsts">HSTS</a></li>
+<li class="toc-entry toc-h1"><a href="#google-analyticsを設定する">Google Analyticsを設定する</a></li>
+<li class="toc-entry toc-h1"><a href="#disqusを使用する">Disqusを使用する</a></li>
+<li class="toc-entry toc-h1"><a href="#snsのsvgファイル">SNSのSVGファイル</a></li>
+<li class="toc-entry toc-h1"><a href="#amazonのリンクを貼る">Amazonのリンクを貼る</a></li>
+<li class="toc-entry toc-h1"><a href="#jekyll-ditaa">jekyll-ditaa</a></li>
+<li class="toc-entry toc-h1"><a href="#参考文献">参考文献</a></li>
+</ul><h1 id="jekyll---">
+<a id="jekyll---静的サイトジェネレータ" class="anchor" href="#jekyll---%E9%9D%99%E7%9A%84%E3%82%B5%E3%82%A4%E3%83%88%E3%82%B8%E3%82%A7%E3%83%8D%E3%83%AC%E3%83%BC%E3%82%BF" aria-hidden="true"><span class="octicon octicon-link"></span></a>jekyll - 静的サイトジェネレータ</h1>
+
+<p>markdown,liquid,sassなどをHTMLにコンバートするためのフレームワーク。ローカルコンピュータ側でコンバート処理は完了するため、PHPやCGIなどの動的にHTMLを生成する必要がない。 Github pageでホストする場合は、jekyllがgithub側で動作しているのでテンプレートだけで生成することができる。
+静的サイトジェネレータを利用するレバサーバリソースを消費することなく、セキュリティ的にも好ましいサイトの公開が可能となる。</p>
+
+<h1 id="github-pagejekyllhtml">
+<a id="github-pageにjekyllで生成したhtmlを公開する" class="anchor" href="#github-page%E3%81%ABjekyll%E3%81%A7%E7%94%9F%E6%88%90%E3%81%97%E3%81%9Fhtml%E3%82%92%E5%85%AC%E9%96%8B%E3%81%99%E3%82%8B" aria-hidden="true"><span class="octicon octicon-link"></span></a>Github pageにJekyllで生成したHTMLを公開する</h1>
+
+<p>jekyllを利用して初期のHTMLを公開するのは5分程度で実行することができる。</p>
+
+<div class="language-bash highlighter-rouge">
+<pre class="highlight"><code><span class="c"># 手元にcloneしてくる</span>
+<span class="gp">$ </span>git clone git@github.com:KosukeShimofuji/KosukeShimofuji.github.io.git
+<span class="c"># jekyllをインストールする</span>
+<span class="gp">$ </span>gem install jekyll
+<span class="gp">$ </span>gem install jekyll-sitemap
+<span class="gp">$ </span>gem install jekyll-paginate
+<span class="gp">$ </span>gem install jekyll-gist
+<span class="c"># テンプレートを生成する</span>
+<span class="gp">$ </span>jekyll new ./KosukeShimofuji.github.io.git
+<span class="c"># 現在の状態を組み込みサーバを使って確認する</span>
+<span class="gp">$ </span>jekyll server -H0.0.0.0
+<span class="c"># githubにpushする</span>
+<span class="gp">$ </span>git add -A <span class="o">&amp;&amp;</span> git commit -m <span class="s2">"first commit"</span> <span class="o">&amp;&amp;</span> git push origin master
+</code></pre>
+</div>
+
+<h1 id="jekyll">
+<a id="初期のjekyllの構成を抑えておく" class="anchor" href="#%E5%88%9D%E6%9C%9F%E3%81%AEjekyll%E3%81%AE%E6%A7%8B%E6%88%90%E3%82%92%E6%8A%91%E3%81%88%E3%81%A6%E3%81%8A%E3%81%8F" aria-hidden="true"><span class="octicon octicon-link"></span></a>初期のjekyllの構成を抑えておく</h1>
+
+<p>jekyllは自分でカスタマイズすることを前提に使うものだと思う。なので初期の構成を抑えて、jekyllの動作を把握するのは重要。</p>
+
+<div class="language-bash highlighter-rouge">
+<pre class="highlight"><code><span class="gp">$ </span>tree KosukeShimofuji.github.io/
+KosukeShimofuji.github.io/
+├── _config.yml
+├── _includes
+│   ├── footer.html
+│   ├── head.html
+│   ├── header.html
+│   ├── icon-github.html
+│   ├── icon-github.svg
+│   ├── icon-twitter.html
+│   └── icon-twitter.svg
+├── _layouts
+│   ├── default.html
+│   ├── page.html
+│   └── post.html
+├── _posts
+│   └── 2016-06-30-welcome-to-jekyll.markdown
+├── _sass
+│   ├── _base.scss
+│   ├── _layout.scss
+│   └── _syntax-highlighting.scss
+├── _site
+│   ├── about
+│   │   └── index.html
+│   ├── css
+│   │   └── main.css
+│   ├── feed.xml
+│   ├── index.html
+│   └── jekyll
+│       └── update
+│           └── 2016
+│               └── 06
+│                   └── 30
+│                       └── welcome-to-jekyll.html
+├── about.md
+├── css
+│   └── main.scss
+├── feed.xml
+└── index.html
+
+13 directories, 24 files
+</code></pre>
+</div>
+
+<h1 id="drafts">
+<a id="draftsを追加する" class="anchor" href="#drafts%E3%82%92%E8%BF%BD%E5%8A%A0%E3%81%99%E3%82%8B" aria-hidden="true"><span class="octicon octicon-link"></span></a>draftsを追加する</h1>
+
+<p>記事の精査をするための下書きの仕組みを導入する</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ mkdir _drafts
+$ jekyll server -H0.0.0.0 -w --drafts
+</code></pre>
+</div>
+
+<h1 id="syntax-highlight">
+<a id="syntax-highlightを変更する" class="anchor" href="#syntax-highlight%E3%82%92%E5%A4%89%E6%9B%B4%E3%81%99%E3%82%8B" aria-hidden="true"><span class="octicon octicon-link"></span></a>syntax highlightを変更する</h1>
+
+<p>テーマを<a href="https://github.com/jwarby/jekyll-pygments-themes">公開</a>されている方がいらっしゃるので使わせてもらう。
+<a href="https://github.com/KosukeShimofuji/KosukeShimofuji.github.io/commit/bd84c2ab6bf0fca73a8a695c4d5e4e9ea6431e2a">commit</a></p>
+
+<h2 id="ogp">
+<a id="ogpの設定" class="anchor" href="#ogp%E3%81%AE%E8%A8%AD%E5%AE%9A" aria-hidden="true"><span class="octicon octicon-link"></span></a>OGPの設定</h2>
+
+<p>facebookのシェアボタンなどはOGPの値を読み取って処理を行うため、OGPの設定を行う必要があった。
+<a href="https://github.com/KosukeShimofuji/KosukeShimofuji.github.io/commit/f911a168fa4677107c252a9baac354fe5bbec489">commit</a></p>
+
+<h1 id="section">
+<a id="シェアボタンを追加する" class="anchor" href="#%E3%82%B7%E3%82%A7%E3%82%A2%E3%83%9C%E3%82%BF%E3%83%B3%E3%82%92%E8%BF%BD%E5%8A%A0%E3%81%99%E3%82%8B" aria-hidden="true"><span class="octicon octicon-link"></span></a>シェアボタンを追加する</h1>
+
+<p>twitter,hatena,facebook,google,pocketからシェアボタンの作り方を閲覧して、<a href="https://github.com/KosukeShimofuji/KosukeShimofuji.github.io/commit/529f3f24d93b8607d15bb6d8470c65fae6ca266a">コミット</a>を作成した。</p>
+
+<h1 id="toc">
+<a id="tocを追加する" class="anchor" href="#toc%E3%82%92%E8%BF%BD%E5%8A%A0%E3%81%99%E3%82%8B" aria-hidden="true"><span class="octicon octicon-link"></span></a>TOCを追加する</h1>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>gem install jekyll-toc
+</code></pre>
+</div>
+
+<p><a href="https://github.com/KosukeShimofuji/KosukeShimofuji.github.io/commit/4dcc841aab704b13ca8b4e32384e918b26da1bc3">commit</a></p>
+
+<h1 id="github-page">
+<a id="ローカルで生成したファイルをgithub-pageに公開する運用に変更する" class="anchor" href="#%E3%83%AD%E3%83%BC%E3%82%AB%E3%83%AB%E3%81%A7%E7%94%9F%E6%88%90%E3%81%97%E3%81%9F%E3%83%95%E3%82%A1%E3%82%A4%E3%83%AB%E3%82%92github-page%E3%81%AB%E5%85%AC%E9%96%8B%E3%81%99%E3%82%8B%E9%81%8B%E7%94%A8%E3%81%AB%E5%A4%89%E6%9B%B4%E3%81%99%E3%82%8B" aria-hidden="true"><span class="octicon octicon-link"></span></a>ローカルで生成したファイルをgithub pageに公開する運用に変更する</h1>
+
+<p>github pageではjekyll pluginがsafe modeになっているため使えないので、ローカルで生成したファイル群をgh-pagesに追加するような運用にする。 
+masterにコミットされたファイルがgithub pageとして公開されるのでソースコードの管理はsoure branchで行い、jekyllで生成したファイルをmasterブランチに展開する。
+この作業を簡単にする<a href="https://github.com/KosukeShimofuji/KosukeShimofuji.github.io/blob/source/publish.sh">スクリプト</a>を書いておく。</p>
+
+<h1 id="section-1">
+<a id="カスタムドメインを設定する" class="anchor" href="#%E3%82%AB%E3%82%B9%E3%82%BF%E3%83%A0%E3%83%89%E3%83%A1%E3%82%A4%E3%83%B3%E3%82%92%E8%A8%AD%E5%AE%9A%E3%81%99%E3%82%8B" aria-hidden="true"><span class="octicon octicon-link"></span></a>カスタムドメインを設定する。</h1>
+
+<p>jekyllとは関係ないが、github pageのCNAMEの設定を行う。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>kosuke@chaos ~/KosukeShimofuji.github.io $ echo "KosukeShimofuji.jp" &gt; CNAME
+</code></pre>
+</div>
+
+<p><a href="https://help.github.com/articles/troubleshooting-custom-domains/#dns-configuration-errors">ここ</a>の指示通りドメインを取得した企業のコンパネでカスタムドメインのAレコードを以下のIPアドレスに向ける。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>192.30.252.153
+192.30.252.154
+</code></pre>
+</div>
+
+<p>Aレコードの状態とNSレコードの状態を確認する。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>kosuke@chaos ~ $ dig kosukeshimofuji.jp @8.8.8.8 a +short
+192.30.252.153
+192.30.252.154
+kosuke@chaos ~ $ dig kosukeshimofuji.jp @8.8.8.8 ns +short
+dns01.muumuu-domain.com.
+dns02.muumuu-domain.com.
+</code></pre>
+</div>
+
+<p>上記のようにdnsが設定されれば、カスタムドメインでgithub pageにアクセスすることができる。</p>
+
+<h1 id="tls">
+<a id="tlsで接続できるようにする" class="anchor" href="#tls%E3%81%A7%E6%8E%A5%E7%B6%9A%E3%81%A7%E3%81%8D%E3%82%8B%E3%82%88%E3%81%86%E3%81%AB%E3%81%99%E3%82%8B" aria-hidden="true"><span class="octicon octicon-link"></span></a>TLSで接続できるようにする</h1>
+
+<p><a href="http://qiita.com/superbrothers/items/95e5723e9bd320094537">ここ</a>を参考にCloudFlareを利用してCloudFlareとGithub Page間をTLS接続できるようにした。 この時点でのDNSの設定は以下のようになっている。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>kosuke@chaos ~ $ dig kosukeshimofuji.jp +short a @8.8.8.8
+104.31.74.13
+104.31.75.13
+kosuke@chaos ~ $ dig kosukeshimofuji.jp +short ns @8.8.8.8
+sofia.ns.cloudflare.com.
+bayan.ns.cloudflare.com.
+</code></pre>
+</div>
+
+<p>反映に半日程度の時間が必要だった。
+Flexible設定はあくまでクライアントからCloudFlare間の通信を暗号化するものなので、CloudFlareは通信を平文で閲覧することができる。
+といってもCDNという仕組みは中間者攻撃し放題の仕組みだと思うので、CloudFlareを通してTLSの設定をするというのはCloudFlareに全幅の信頼を置くということだ。</p>
+
+<h1 id="page-rules">
+<a id="page-rules" class="anchor" href="#page-rules" aria-hidden="true"><span class="octicon octicon-link"></span></a>Page Rules</h1>
+
+<p>kosukeshimofuji.jp/*のリクエストを強制的にhttpsに書き換えます。</p>
+
+<p><img src="/images/2016/07/01/page_rule.png" alt="page_rule"></p>
+
+<h1 id="hsts">
+<a id="hsts" class="anchor" href="#hsts" aria-hidden="true"><span class="octicon octicon-link"></span></a>HSTS</h1>
+
+<p>kosukeshimofuji.jpのリクエストはHTTPSを使用するように指示します。しかしサブドメインは除外します。</p>
+
+<p><img src="/images/2016/07/01/HSTS.png" alt="HSTSk"></p>
+
+<h1 id="google-analytics">
+<a id="google-analyticsを設定する" class="anchor" href="#google-analytics%E3%82%92%E8%A8%AD%E5%AE%9A%E3%81%99%E3%82%8B" aria-hidden="true"><span class="octicon octicon-link"></span></a>Google Analyticsを設定する</h1>
+
+<ul>
+  <li>Google Tracking codeを有効にする。</li>
+</ul>
+
+<p><a href="https://github.com/KosukeShimofuji/KosukeShimofuji.github.io/commit/7c816507c7262694619b8c23cbec0e8ce177f590">commit</a></p>
+
+<p><a href="https://get.google.com/tagassistant/?utm_source=google.com&amp;utm_medium=notif_referral&amp;utm_campaign=TRAFFIC_ANALYSIS_RECOMMENDATION">Google Tag Assisant</a>を使ってTracking Codeが正常に動作するかを確認する。</p>
+
+<ul>
+  <li>Google Search Consoleに登録する。</li>
+</ul>
+
+<p><a href="https://github.com/KosukeShimofuji/KosukeShimofuji.github.io/commit/41bfa05cf7d294b1d947895dfa48ab3cd8a9b5e0">commit</a></p>
+
+<h1 id="disqus">
+<a id="disqusを使用する" class="anchor" href="#disqus%E3%82%92%E4%BD%BF%E7%94%A8%E3%81%99%E3%82%8B" aria-hidden="true"><span class="octicon octicon-link"></span></a>Disqusを使用する</h1>
+
+<p><a href="https://disqus.com/">disqus.com</a>に登録して以下のようなコミットを作成する。</p>
+
+<p><a href="https://github.com/KosukeShimofuji/KosukeShimofuji.github.io/commit/64012602a2fc0fc86a6e5cddf867ca624cf74eac">commit</a></p>
+
+<h1 id="snssvg">
+<a id="snsのsvgファイル" class="anchor" href="#sns%E3%81%AEsvg%E3%83%95%E3%82%A1%E3%82%A4%E3%83%AB" aria-hidden="true"><span class="octicon octicon-link"></span></a>SNSのSVGファイル</h1>
+
+<p><a href="https://github.com/tombryan/social-icon-font">ここ</a>のiconを使わせていただいている。</p>
+
+<h1 id="amazon">
+<a id="amazonのリンクを貼る" class="anchor" href="#amazon%E3%81%AE%E3%83%AA%E3%83%B3%E3%82%AF%E3%82%92%E8%B2%BC%E3%82%8B" aria-hidden="true"><span class="octicon octicon-link"></span></a>Amazonのリンクを貼る</h1>
+
+<p>tokzkさんの<a href="https://github.com/tokzk/jekyll-amazon">jeykll-amazon</a>を使わせていただく。<a href="http://okzk.org/blog/jekyll-amazon-gem">この記事</a>を参考に導入した。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ gem install jekyll-amazon
+</code></pre>
+</div>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>export ECS_ASSOCIATE_TAG=kosukeshimofu-22
+export AWS_ACCESS_KEY_ID=XXX
+export AWS_SECRET_KEY=XXX
+</code></pre>
+</div>
+
+<p>しかし以下のようなエラーが発生して動かない。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>jekyll 3.1.6 | Error:  AWS_ACCESS_KEY_ID env variable is not set
+</code></pre>
+</div>
+
+<p>ソースを見ると環境変数名が間違っているようだ。</p>
+
+<p><a href="https://github.com/tokzk/jekyll-amazon/blob/d4f6113e46d37512726603d30b0d115c2f47d37e/lib/jekyll-amazon/amazon_tag.rb#L3">amazon_tag.rb#L3</a></p>
+
+<p>以下のようにすれば動く。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>export ECS_ASSOCIATE_TAG=kosukeshimofu-22
+export AWS_ACCESS_KEY=XXX
+export AWS_SECRET_KEY=XXX
+</code></pre>
+</div>
+
+<p><a href="http://www.amazon.co.jp/%E3%83%8F%E3%83%A0%E3%83%AC%E3%83%83%E3%83%88-%E6%96%B0%E6%BD%AE%E6%96%87%E5%BA%AB-%E3%82%A6%E3%82%A3%E3%83%AA%E3%82%A2%E3%83%A0-%E3%82%B7%E3%82%A7%E3%82%A4%E3%82%AF%E3%82%B9%E3%83%94%E3%82%A2/dp/4102020039%3FSubscriptionId%3DAKIAJKVKPSDQH6S2KSMQ%26tag%3Dkosukeshimofu-22%26linkCode%3Dxm2%26camp%3D2025%26creative%3D165953%26creativeASIN%3D4102020039" target="_blank">
+  <img src="http://ecx.images-amazon.com/images/I/51dbOfPzHpL._SL160_.jpg" alt="ハムレット (新潮文庫)">
+</a></p>
+
+<p>jekyll-amazon側の小さな間違いだと思うので修正する<a href="https://github.com/tokzk/jekyll-amazon/pull/1">PullRequest</a>を送信した。</p>
+
+<p>環境変数を毎回設定するのは大変なので、direnvを利用する。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ wget https://github.com/direnv/direnv/releases/download/v2.9.0/direnv.linux-amd64 -O direnv
+$ chmod 700 direnv
+$ mv direnv local/bin/
+$ echo 'eval "$(direnv hook bash)"' &gt;&gt; ~/.bashrc
+$ cat &gt; .envrc
+export ECS_ASSOCIATE_TAG=kosukeshimofu-22
+export AWS_ACCESS_KEY=XXX
+export AWS_SECRET_KEY=XXX
+CTRL+C
+</code></pre>
+</div>
+
+<h1 id="jekyll-ditaahttpsgithubcommatzejekyll-ditaa">
+<a id="jekyll-ditaa" class="anchor" href="#jekyll-ditaa" aria-hidden="true"><span class="octicon octicon-link"></span></a><a href="https://github.com/matze/jekyll-ditaa">jekyll-ditaa</a>
+</h1>
+
+<p><a href="http://ditaa.sourceforge.net/">ditaa</a>というAscii Artからデータグラムを生成してくれるプログラムがある。これをjekyllから使えるようにしてみる。</p>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ sudo apt-get install ditaa
+$ gem install jekyll-ditaa
+$ mkdir _pluguins &amp;&amp; cd _plugins
+$ wget https://raw.githubusercontent.com/matze/jekyll-ditaa/master/ditaa.rb
+</code></pre>
+</div>
+
+<p><img src="/images/ditaa/ditaa-39ac4792df554e6b7472394c94f8725d.png"></p>
+
+<h1 id="section-2">
+<a id="参考文献" class="anchor" href="#%E5%8F%82%E8%80%83%E6%96%87%E7%8C%AE" aria-hidden="true"><span class="octicon octicon-link"></span></a>参考文献</h1>
+
+<ul>
+  <li>https://jekyllrb-ja.github.io/</li>
+  <li>https://shopify.github.io/liquid/</li>
+  <li>https://ja.wikipedia.org/wiki/Sass</li>
+  <li>http://tokkono.cute.coocan.jp/blog/slow/index.php/programming/github-pages-almost-perfect-guide/</li>
+  <li>http://qiita.com/hurutoriya/items/f8dd9c31d8a1050a4be4</li>
+  <li>https://murashun.jp/blb6CZHxCs7PloiqqhbfN3rwFNSmNsK3tuO/mW3+FAog/20150628-01.html</li>
+  <li>https://help.github.com/articles/using-a-custom-domain-with-github-pages/</li>
+  <li>http://qiita.com/superbrothers/items/95e5723e9bd320094537</li>
+  <li>http://uzulla.hateblo.jp/entry/2015/02/25/033133</li>
+  <li>https://blog.euonymus.info/cloudflare%E3%81%A7ssl%E3%82%92%E5%B0%8E%E5%85%A5%E3%81%99%E3%82%8B%E6%99%82%E3%81%AE%E6%B3%A8%E6%84%8F/</li>
+  <li>https://teamtreehouse.com/library/build-a-blog-with-jekyll-and-github-pages/building-and-customizing-the-blog/comment-threads</li>
+  <li>http://okzk.org/blog/jekyll-amazon-gem</li>
+</ul>
+
+
+  </div>
+
+  <style type="text/css">
+<!--
+/*** sahre button settings ***/
+
+/* adjusting twitter share button */
+ul.share-buttons{
+  margin : 0;
+  list-style: none;
+  padding: 0;
+}
+
+ul.share-buttons li{
+  display: inline;
+}
+
+/* adjusting facebook share button */
+.fb_iframe_widget > span {
+  vertical-align: baseline !important;
+}
+
+/* adjusting google share button */
+#___plusone_0{ width:72px !important; }
+.___plusone_0 > span {
+  vertical-align: baseline !important;
+}
+
+/* adjusting pocket share button */
+.pocket-btn {
+    display: inline;
+}
+-->
+</style>
+
+<!-- twitter share script -->
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+<!-- hatena share script -->
+<script type="text/javascript" src="https://b.st-hatena.com/js/bookmark_button.js" charset="utf-8" async="async"></script>
+
+<!-- facebook sahre script -->
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/ja_JP/sdk.js#xfbml=1&version=v2.6";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<!-- google sahre script -->
+<script src="https://apis.google.com/js/platform.js" async defer>
+ang: 'ja'}
+</script>
+
+<script type="text/javascript">!function(d,i){if(!d.getElementById(i)){var j=d.createElement("script");j.id=i;j.src="https://widgets.getpocket.com/v1/j/btn.js?v=1";var w=d.getElementById(i);d.body.appendChild(j);}}(document,"pocket-btn-js");</script>
+
+<ul class="share-buttons" >
+    <li>
+        <!-- twitter share button -->
+    <a href="https://twitter.com/share"
+       class="twitter-share-button"
+       data-url="https://kosukeshimofuji.jp/2016/07/01/hello-jekyll/"
+       data-text="JekyllではじめるBLOG | Kosuke Shimofuji's Home Page" >Tweet</a>
+    </li>
+    <li>
+        <!-- facebook share button -->
+        <div class="fb-share-button"
+             data-href="https://kosukeshimofuji.jp/2016/07/01/hello-jekyll/"
+             data-layout="button_count"></div>
+    </li>
+    <li>
+        <!-- hatena share button -->
+        <a href="http://b.hatena.ne.jp/entry/https://kosukeshimofuji.jp/2016/07/01/hello-jekyll/"
+           class="hatena-bookmark-button"
+           data-hatena-bookmark-layout="simple-balloon"
+           data-hatena-bookmark-title="JekyllではじめるBLOG | Kosuke Shimofuji's Home Page"
+           data-hatena-bookmark-lang="ja"
+           title="Share on Hatena">
+            <img src="https://b.st-hatena.com/images/entry-button/button-only@2x.png"
+                 alt="Share on Hatena" width="20" height="20" style="border: none;" />
+        </a>
+    </li>
+    <li>
+        <!-- google share button -->
+        <div class="g-plusone"
+             data-href="https://kosukeshimofuji.jp/2016/07/01/hello-jekyll/"></div>
+    </li>
+    <li>
+        <!-- pocket share button -->
+        <a data-pocket-label="pocket" data-pocket-count="horizontal" class="pocket-btn" data-lang="en"></a>
+    </li>
+</ul>
+
+
+  <br>
+  <div id="disqus_thread"></div>
+<script>
+    /**
+     *  RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
+     *  LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables
+     */
+    /*
+    var disqus_config = function () {
+        this.page.url = PAGE_URL;  // Replace PAGE_URL with your page's canonical URL variable
+        this.page.identifier = PAGE_IDENTIFIER; // Replace PAGE_IDENTIFIER with your page's unique identifier variable
+    };
+    */
+    (function() {  // DON'T EDIT BELOW THIS LINE
+        var d = document, s = d.createElement('script');
+        
+        s.src = '//kosukesimofuji-hp.disqus.com/embed.js';
+        
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+
+</article>
+
+      </div>
+    </div>
+
+    <footer class="site-footer">
+  <div class="site-footer-wrapper">
+    <div id="footer-description">Think about cyber warfare, business warfare.
+</div>
+    <br>
+    <a href="mailto:kosuke.shimofuji@gmail.com"><?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 17.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1 Tiny//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11-tiny.dtd">
+<svg version="1.1" baseProfile="tiny" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+	 x="0px" y="0px" width="30px" height="30px" viewBox="0 0 100 100" overflow="scroll" xml:space="preserve">
+<path fill="#231F20" d="M50,0C22.386,0,0,22.386,0,50s22.386,50,50,50s50-22.386,50-50S77.614,0,50,0z M19.188,72.951V72.85
+	l24.708-23.145l6.103,5.597l5.967-5.472l24.682,23.121H19.188z M80.81,70.861l-23.635-22.14L80.81,27.048L49.999,50L19.188,27.048
+	l23.499,21.547L19.188,70.609V27.048H80.81V70.861z"/>
+</svg>
+</a>
+    <a href="/feed.xml"><?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 17.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1 Tiny//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11-tiny.dtd">
+<svg version="1.1" baseProfile="tiny" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+	 x="0px" y="0px" width="30px" height="30px" viewBox="0 0 100 100" overflow="visible" xml:space="preserve">
+<path fill="#231F20" d="M50,0C22.386,0,0,22.386,0,50s22.386,50,50,50s50-22.386,50-50S77.614,0,50,0z M35.379,70.782h-0.02
+	c-3.111,0-5.646-2.531-5.658-5.641c-0.002-3.119,2.529-5.668,5.646-5.68c3.133,0,5.669,2.529,5.673,5.641
+	C41.03,68.221,38.502,70.768,35.379,70.782z M51.874,70.718c-0.401-11.855-9.782-20.759-22.214-21.064l-0.02-7.672
+	c16.59,0.357,29.486,12.781,29.916,28.711L51.874,70.718z M67.979,70.658c-0.446-20.681-17.11-36.818-38.362-37.105l-0.021-7.674
+	C55.152,26.154,75.201,45.65,75.66,70.625L67.979,70.658z"/>
+</svg>
+</a>
+    <a href="https://github.com/KosukeShimofuji"><?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 17.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1 Tiny//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11-tiny.dtd">
+<svg version="1.1" baseProfile="tiny" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+	 x="0px" y="0px" width="30px" height="30px" viewBox="0 0 100 100" xml:space="preserve">
+<path fill="#231F20" d="M50.141,61.976c3.769,0,6.824,1.903,6.824,4.251s-3.055,4.251-6.824,4.251s-6.824-1.903-6.824-4.251
+	S46.372,61.976,50.141,61.976z M49.23,29.299c2.584,0,4.678,2.632,4.678,5.878s-2.094,5.878-4.678,5.878s-4.678-2.632-4.678-5.878
+	S46.646,29.299,49.23,29.299z M50,0C22.386,0,0,22.386,0,50s22.386,50,50,50s50-22.386,50-50S77.614,0,50,0z M62.501,35.182
+	c0,7.247-5.84,13.135-13.098,13.278c-1.916,3.813-0.003,5.578,1.468,6.328c0,0,0.298,0.151,0.95,0.388
+	c0.239,0.076,0.391,0.107,0.391,0.107s-0.002,0.011-0.003,0.03c0.457,0.155,1.04,0.338,1.76,0.534
+	c0.876,0.146,1.723,0.347,2.533,0.601c0.003,0,0.008,0.002,0.013,0.003c0,0,0.013,0.003,0.017,0.006
+	c1.336,0.421,2.569,0.983,3.664,1.659c0.451,0.259,0.86,0.529,1.16,0.798l0.002,0.002c2.335,1.799,3.819,4.205,3.981,6.916
+	c0.364,6.147-6.211,11.533-14.684,12.029C42.18,78.357,35.016,73.777,34.65,67.63c-0.257-4.348,2.959-8.313,7.859-10.438
+	c-5.216-4.507-2.277-8.819-0.432-10.731c-3.786-2.345-6.308-6.519-6.308-11.279c0-7.337,5.984-13.284,13.365-13.284
+	c2.213,0,4.297,0.537,6.134,1.483c0,0,3.796,1.554,10.098-1.483v8.16h0.002c0,0-1.893,0.859-3.395,1.421
+	C62.314,32.655,62.501,33.897,62.501,35.182z"/>
+</svg>
+
+</a>
+    <a href="https://twitter.com/KosukeShimofuji"><?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 17.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1 Tiny//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11-tiny.dtd">
+<svg version="1.1" baseProfile="tiny" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+	 x="0px" y="0px" width="30px" height="30px" viewBox="0 0 100 100" xml:space="preserve">
+<path fill="#231F20" d="M50,0C22.386,0,0,22.386,0,50s22.386,50,50,50s50-22.386,50-50S77.614,0,50,0z M76.666,38.556
+	c0.023,0.547,0.037,1.096,0.037,1.646c0,16.818-12.801,36.211-36.211,36.211c-7.188,0-13.877-2.106-19.51-5.717
+	c0.996,0.116,2.01,0.177,3.037,0.177c5.963,0,11.449-2.034,15.807-5.448c-5.57-0.102-10.271-3.782-11.891-8.838
+	c0.777,0.148,1.574,0.229,2.395,0.229c1.162,0,2.285-0.156,3.354-0.447C27.862,55.2,23.475,50.056,23.475,43.89
+	c0-0.053,0-0.106,0-0.16c1.717,0.954,3.68,1.526,5.766,1.593c-3.416-2.282-5.662-6.178-5.662-10.594c0-2.332,0.627-4.52,1.723-6.398
+	c6.277,7.699,15.656,12.768,26.234,13.299c-0.219-0.933-0.332-1.904-0.332-2.901C51.203,31.698,56.904,26,63.932,26
+	c3.66,0,6.969,1.545,9.289,4.02c2.9-0.571,5.623-1.63,8.082-3.089c-0.949,2.972-2.969,5.467-5.596,7.041
+	c2.574-0.308,5.027-0.992,7.309-2.004C81.311,34.52,79.152,36.762,76.666,38.556z"/>
+</svg>
+</a>
+    <br><br>
+    <div id="footer-copyright">&copy; 2016 Kosuke Shimofuji. All rights reserved.</div>
+  </div>
+</footer>
+
+
+  </body>
+
+</html>

